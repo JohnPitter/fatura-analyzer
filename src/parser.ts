@@ -302,63 +302,42 @@ export function parseBradesco(text: string): Transaction[] {
   const transactions: Transaction[] = [];
   const lines = text.split('\n');
 
-  // Bradesco format: "DD/MM DESCRIPTION CITY VALUE"
-  // or: "DD/MM DESCRIPTION XX/YY CITY VALUE"
-  const txRegex = /^(\d{2}\/\d{2})\s+(.+?)\s+([\d.,]+(?:-)?)\s*$/;
+  // Bradesco PDFs have 2 columns — pdfjs merges them by Y coordinate.
+  // Lines starting with DD/MM are transactions, even if right-column text is appended.
+  // Strategy: for DD/MM lines, extract value with a lenient regex that doesn't require end-of-line.
+
+  // Brazilian currency value: 1-6 digits with optional dot thousands separator, comma, 2 decimals
+  // Matches: "326,05", "1.544,55", "3.062,08-"
+  const brValuePattern = /(\d{1,3}(?:\.\d{3})*,\d{2})(-)?/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    // Skip non-transaction lines
-    if (line.includes('PAGTO') || line.includes('Total para') || line.includes('Total da fatura') ||
-        line.includes('Limite') || line.includes('Taxas') || line.includes('Programa') ||
-        line.includes('Pontos') || line.includes('Saldo de pontos') || line.includes('Central') ||
-        line.includes('Mensagem') || line.includes('Pagamento da fatura') || line.includes('Atenção') ||
-        line.includes('Parcelado Fácil') || line.includes('SAC:') || line.includes('Ouvidoria') ||
-        line.includes('Baixe') || line.includes('Fatura Mensal') || line.includes('Número do') ||
-        line.includes('Lançamentos') || line.includes('Cotação') || line.includes('Histórico') ||
-        (line.includes('Data') && line.includes('Cidade')) || line.includes('do Dólar') ||
-        line.includes('JOAO PEDRO') || line.includes('anterior') || line.includes('Demais') ||
-        /^Cart[ãa]o\s+\d{4}/i.test(line) || line.includes('Compras R$') || line.includes('Saque R$') ||
-        line.includes('CET') || line.includes('Crediário') || line.includes('Rotativo') ||
-        line.includes('legislação') || line.includes('vencimento') || line.includes('Novo teto') ||
-        line.includes('Valor em R$') || line.includes('Valor original') || line.includes('encargos financeiros') ||
-        line.includes('% sobre') || line.includes('juros e encargos') || line.includes('apresentados') ||
-        line.includes('máximo') || line.includes('rotativo') || line.includes('cobrada') ||
-        line.includes('operação') || line.includes('FIDELIDADE') || line.includes('Associado') ||
-        line.includes('consolidada') || line.includes('expirar') || line.includes('pontoslivelo') ||
-        line.includes('central de atendimento') || line.includes('3004-8858') ||
-        line.includes('0800') || line.includes('banco.bradesco') ||
-        line.includes('Defici') || line.includes('Reclama') || line.includes('satisfeito') ||
-        line.includes('Exterior') || line.includes('Consultas') ||
-        line.match(/^\d{12,}/) || line.match(/^P.gina/) ||
-        line.match(/^R\$/) || line.includes('pr.ximas faturas') ||
-        // Rate table labels (right-side column data)
-        /^Pagamento de Contas$/i.test(line) ||
-        /^Parcelamento Fatura$/i.test(line) ||
-        /^Compras Parceladas$/i.test(line) ||
-        /^Saque [àa] Vista$/i.test(line) ||
-        /com Juros/i.test(line) ||
-        // Lines with multiple percentage values (rate tables)
-        /\d+,\d+%\s+\d+,\d+%/.test(line) ||
-        // Lines with multiple R$ amounts (limit info from right column)
-        /R\$\s*[\d.,]+\s+R\$\s*[\d.,]+/.test(line) ||
-        // Installment-only markers: lines that are just "XX/YY" with nothing else
-        /^\d{2}\/\d{2}\s*$/.test(line) ||
-        // Saque limit info lines (contain "Saque" with R$ amounts)
-        (/Saque/.test(line) && /R\$/.test(line))) {
-      continue;
-    }
+    // Check if line starts with a date (DD/MM) — potential transaction
+    const dateMatch = line.match(/^(\d{2}\/\d{2})\s+(.+)/);
 
-    const match = line.match(txRegex);
-    if (match) {
-      let [, date, rawDesc, valueStr] = match;
+    if (dateMatch) {
+      const [, date, rest] = dateMatch;
 
-      // Skip negative values (payments)
-      if (valueStr.endsWith('-')) continue;
+      // Skip payment lines and totals (these also start with dates)
+      if (rest.includes('PAGTO') || rest.includes('Total para') || rest.includes('Total da fatura')) {
+        continue;
+      }
+
+      // Find the Brazilian currency value in the rest of the line
+      const valueMatch = rest.match(brValuePattern);
+      if (!valueMatch) continue;
+
+      const valueStr = valueMatch[1];
+      const isNegative = valueMatch[2] === '-';
+      if (isNegative) continue;
 
       const value = parseValue(valueStr);
       if (value <= 0) continue;
+
+      // Extract description: everything between the date and the value
+      const valueIndex = rest.indexOf(valueMatch[0]);
+      let rawDesc = rest.substring(0, valueIndex).trim();
 
       // Extract installment info (XX/YY pattern in description)
       let installment: string | undefined;
@@ -373,7 +352,6 @@ export function parseBradesco(text: string): Transaction[] {
 
       // Clean description: remove city at the end
       let description = rawDesc.trim();
-      // Remove trailing city names (usually last word or two)
       const cityPattern = /\s+(SAO PAULO|RECIFE|PAULISTA|OLINDA|BARUERI|OSASCO|IGARASSU|SANTO ANDRE|NAVEGANTES|SOROCABA|CAMARAGIBE|CURITIBA|Sao Paulo|Paulista|Olinda|Recife|S o Paulo|SANTANA DE|Brasilia|PA)\s*$/i;
       description = description.replace(cityPattern, '').trim();
 
@@ -381,6 +359,9 @@ export function parseBradesco(text: string): Transaction[] {
       if (installment) {
         description = description.replace(new RegExp(`\\s*${installment.replace('/', '\\/')}\\s*`), ' ').trim();
       }
+
+      // Skip if description is empty or looks like a date-only line (e.g. "20/03/2026")
+      if (!description || /^\d{2}\/\d{2}\/\d{4}$/.test(description)) continue;
 
       transactions.push({
         id: nextId(),
@@ -393,7 +374,12 @@ export function parseBradesco(text: string): Transaction[] {
         splitPeople: 1,
         isPersonal: true,
       });
+      continue;
     }
+
+    // Non-date lines: skip most, but don't need complex filters since
+    // the date check above handles all transactions.
+    // Only installment-marker lines (just "XX/YY") and noise are left.
   }
 
   // Second pass: capture Encargos/IOF lines (they don't start with DD/MM but ARE real charges)
