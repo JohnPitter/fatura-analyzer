@@ -137,20 +137,19 @@ export function parseItau(text: string): Transaction[] {
   const transactions: Transaction[] = [];
   const lines = text.split('\n');
 
-  // Match patterns like: "20/02 DROGAVET RECIF 02/02 94,00"
-  // or "11/09 KIWIFY *Ebook5 06/06 5,61"
-  // The Itaú format has category on the next line
-  const txRegex = /^(\d{2}\/\d{2})\s+(.+?)\s+([\d.,]+)$/;
+  // Itau PDFs have 2 columns that pdfjs merges by Y coordinate.
+  // A single line can contain BOTH a payment and a transaction, e.g.:
+  // "27/02 PAGAMENTO PIX -4.187,95 20/02 DROGAVET RECIF 02/02 94,00"
+  // Strategy: find ALL "DD/MM description value" segments within each line.
 
-  // Track when we enter the "future installments" section — everything after is NOT current
+  const brValue = /(\d{1,3}(?:\.\d{3})*,\d{2})/;
   let inFutureInstallments = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-
-    // Detect "Compras parceladas - próximas faturas" section — stop parsing current transactions
-    // pdfjs may split accented chars with spaces: "pr ó ximas" instead of "próximas"
     const lineNorm = line.replace(/\s+/g, ' ');
+
+    // Detect "Compras parceladas - proximas faturas" section
     if (/Compras parceladas/i.test(lineNorm) && /pr\s*[oó]\s*ximas/i.test(lineNorm)) {
       inFutureInstallments = true;
       continue;
@@ -159,42 +158,57 @@ export function parseItau(text: string): Transaction[] {
       inFutureInstallments = true;
       continue;
     }
-
     if (inFutureInstallments) continue;
 
-    // Skip payment lines, headers, totals, subtotals, limit info, and summary lines
-    if (line.includes('PAGAMENTO') || line.includes('Total dos') || line.includes('Total para') ||
-        line.includes('Limite') || line.includes('Previsão') || line.includes('Próxima fatura') ||
-        line.includes('Demais faturas') ||
-        line.includes('Encargos cobrados') || line.includes('Juros') ||
-        line.includes('Novo teto') || line.includes('Simulação') ||
-        line.includes('Fique atento') || line.includes('contratação') ||
-        line.includes('Dólar') || line.includes('Repasse') || line.includes('4004 4828') ||
-        line.includes('0800') ||
-        // Subtotal line: "Lançamentos no cartão VALUE" (pdfjs may add spaces around accents)
-        /Lan\s*[çc]\s*amentos no cart/i.test(lineNorm) ||
-        // Total lines
+    // Skip lines without any date pattern
+    if (!/\d{2}\/\d{2}/.test(line)) continue;
+
+    // Skip known non-transaction lines
+    if (/Lan\s*[çc]\s*amentos no cart/i.test(lineNorm) ||
         /Total dos lan\s*[çc]\s*amentos/i.test(lineNorm) ||
-        // Limit info lines
-        /Limite de cr\s*[eé]\s*dito/i.test(lineNorm) ||
-        /Limite dispon\s*[ií]\s*vel/i.test(lineNorm) ||
-        /Limite total/i.test(lineNorm) ||
-        // Summary info
+        /Limite/i.test(lineNorm) ||
         /Pr\s*[oó]\s*xima fatura/i.test(lineNorm) ||
         /Total para pr\s*[oó]\s*ximas/i.test(lineNorm) ||
-        // "Simulação de Compras" — rate simulation header
-        /Simula\s*[çc]\s*[ãa]\s*o/i.test(lineNorm)) {
+        /Simula\s*[çc]\s*[ãa]\s*o/i.test(lineNorm) ||
+        /Encargos cobrados/i.test(line) ||
+        line.includes('4004 4828') || line.includes('0800') ||
+        /Previs\s*[ãa]\s*o/i.test(lineNorm)) {
       continue;
     }
 
-    const match = line.match(txRegex);
-    if (match) {
-      const [, date, rawDesc, valueStr] = match;
-      const value = parseValue(valueStr);
+    // Find all DD/MM positions in the line to extract multiple transactions
+    const datePositions: number[] = [];
+    const dateRegex = /(?:^|\s)(\d{2}\/\d{2})\s/g;
+    let dm;
+    while ((dm = dateRegex.exec(line)) !== null) {
+      datePositions.push(dm.index + (dm[0][0] === ' ' ? 1 : 0));
+    }
 
+    for (const pos of datePositions) {
+      const segment = line.substring(pos).trim();
+      const segMatch = segment.match(/^(\d{2}\/\d{2})\s+(.+)/);
+      if (!segMatch) continue;
+
+      const [, date, rest] = segMatch;
+
+      // Find Brazilian currency value
+      const valueMatch = rest.match(brValue);
+      if (!valueMatch) continue;
+
+      const value = parseValue(valueMatch[1]);
       if (value <= 0) continue;
 
-      // Check if next line is a category (Itaú format)
+      // Description: everything between date and value
+      const valueIndex = rest.indexOf(valueMatch[0]);
+      let rawDesc = rest.substring(0, valueIndex).trim();
+
+      // Skip payment/total/noise entries
+      if (rawDesc.includes('PAGAMENTO') || rawDesc.includes('Total')) continue;
+      if (!rawDesc) continue;
+      if (/D[oó]lar|Convers|Repasse|Juros|Fique/i.test(rawDesc)) continue;
+      if (/USD|BRL/.test(rawDesc)) continue;
+
+      // Check next line for Itau category
       let itauCategory: string | undefined;
       if (i + 1 < lines.length) {
         const nextLine = lines[i + 1].trim();
@@ -204,7 +218,7 @@ export function parseItau(text: string): Transaction[] {
         }
       }
 
-      // Clean description - remove installment info like "02/02" or "06/12"
+      // Extract installment info
       let description = rawDesc.trim();
       const installmentMatch = description.match(/\s(\d{2}\/\d{2})\s*$/);
       let installment: string | undefined;
@@ -212,6 +226,12 @@ export function parseItau(text: string): Transaction[] {
         installment = installmentMatch[1];
         description = description.replace(/\s\d{2}\/\d{2}\s*$/, '').trim();
       }
+
+      // Deduplicate: same date + description + value
+      const isDuplicate = transactions.some(t =>
+        t.date === date && t.description === description && Math.abs(t.value - value) < 0.02
+      );
+      if (isDuplicate) continue;
 
       transactions.push({
         id: nextId(),
@@ -227,54 +247,13 @@ export function parseItau(text: string): Transaction[] {
     }
   }
 
-  // Also parse international transactions
-  const intlRegex = /^(\d{2}\/\d{2})\s*(.+?)\s+([\d.,]+)$/;
-  let inInternational = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.includes('Lançamentos internacionais') || line.includes('internacionais')) {
-      inInternational = true;
-      continue;
-    }
-    if (line.includes('Total transações') || line.includes('Total transa')) {
-      inInternational = false;
-      continue;
-    }
-
-    if (inInternational) {
-      // Skip USD/BRL detail lines and currency conversion info
-      if (line.includes('USD') || line.includes('BRL') || line.includes('Dólar') ||
-          line.includes('D dollar') || line.includes('Convers')) {
-        continue;
-      }
-
-      const match = line.match(intlRegex);
-      if (match) {
-        const [, date, rawDesc, valueStr] = match;
-        const value = parseValue(valueStr);
-        if (value > 0) {
-          const description = rawDesc.trim();
-          // Check if this is a duplicate (already parsed from the main section)
-          const isDuplicate = transactions.some(t => t.date === date && Math.abs(t.value - value) < 0.01);
-          if (!isDuplicate) {
-            transactions.push({
-              id: nextId(),
-              date,
-              description,
-              value,
-              category: categorize(description),
-              source: 'itau',
-              splitPeople: 1,
-              isPersonal: true,
-            });
-          }
-        }
-      }
-    }
-  }
+  // NOTE: International transactions (OPENROUTER, CLAUDE.AI, OPENAI) are already captured
+  // in the main loop above because pdfjs groups text by Y-coordinate, mixing both columns.
+  // No separate international parsing pass is needed.
 
   // Capture "Repasse de IOF em R$ XX,XX" line (real charge, no leading date)
+  // Use the last transaction date as context for this charge
+  const lastDate = transactions.length > 0 ? transactions[transactions.length - 1].date : '--/--';
   for (const rawLine of lines) {
     const ln = rawLine.trim();
     const repasseMatch = ln.match(/Repasse\s+de\s+IOF\s+em\s+R\$\s*([\d.,]+)/i);
@@ -283,8 +262,8 @@ export function parseItau(text: string): Transaction[] {
       if (value > 0) {
         transactions.push({
           id: nextId(),
-          date: '',
-          description: 'Repasse de IOF',
+          date: lastDate,
+          description: 'Repasse de IOF (internacional)',
           value,
           category: 'financeiro',
           source: 'itau',
