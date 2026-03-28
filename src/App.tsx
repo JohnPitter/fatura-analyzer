@@ -899,7 +899,8 @@ export default function App() {
                                           <UserPlus className="w-3 h-3" />
                                         </button>
                                         {assignDropdownTx === tx.id && (
-                                          <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg border border-sand-200 shadow-xl p-1 w-36 animate-scale-in">
+                                          <div className="absolute right-0 bottom-full mb-1 z-50 bg-white rounded-xl border-2 border-plum-200 shadow-2xl shadow-plum-500/20 p-1.5 w-40 animate-scale-in">
+                                            <p className="text-[10px] text-ink-400 uppercase tracking-wider font-semibold px-2 py-1">Atribuir a</p>
                                             {people.map(p => (
                                               <button
                                                 key={p.id}
@@ -907,7 +908,7 @@ export default function App() {
                                                   updateTransaction(tx.id, { assignedTo: p.id, splitPeople: 1 });
                                                   setAssignDropdownTx(null);
                                                 }}
-                                                className="w-full text-left px-2.5 py-1.5 rounded-md text-[12px] font-medium text-ink-600 hover:bg-plum-100 hover:text-plum-500 transition-all duration-150 cursor-pointer truncate"
+                                                className="w-full text-left px-2.5 py-2 rounded-lg text-[13px] font-medium text-ink-700 hover:bg-plum-100 hover:text-plum-600 transition-all duration-150 cursor-pointer truncate"
                                               >
                                                 {p.name}
                                               </button>
