@@ -149,12 +149,13 @@ export function parseItau(text: string): Transaction[] {
     const line = lines[i].trim();
 
     // Detect "Compras parceladas - próximas faturas" section — stop parsing current transactions
-    if (/Compras parceladas/i.test(line) && /pr[oó]ximas/i.test(line)) {
+    // pdfjs may split accented chars with spaces: "pr ó ximas" instead of "próximas"
+    const lineNorm = line.replace(/\s+/g, ' ');
+    if (/Compras parceladas/i.test(lineNorm) && /pr\s*[oó]\s*ximas/i.test(lineNorm)) {
       inFutureInstallments = true;
       continue;
     }
-    // Also catch the header without "próximas" if followed by future installment context
-    if (/^Compras parceladas$/i.test(line)) {
+    if (/^Compras parceladas/i.test(lineNorm) && !lineNorm.includes('juros')) {
       inFutureInstallments = true;
       continue;
     }
@@ -170,17 +171,19 @@ export function parseItau(text: string): Transaction[] {
         line.includes('Fique atento') || line.includes('contratação') ||
         line.includes('Dólar') || line.includes('Repasse') || line.includes('4004 4828') ||
         line.includes('0800') ||
-        // Subtotal line: "Lançamentos no cartão VALUE"
-        /Lan[çc]amentos no cart/i.test(line) ||
+        // Subtotal line: "Lançamentos no cartão VALUE" (pdfjs may add spaces around accents)
+        /Lan\s*[çc]\s*amentos no cart/i.test(lineNorm) ||
         // Total lines
-        /Total dos lan[çc]amentos/i.test(line) ||
+        /Total dos lan\s*[çc]\s*amentos/i.test(lineNorm) ||
         // Limit info lines
-        /Limite de cr[eé]dito/i.test(line) ||
-        /Limite dispon[ií]vel/i.test(line) ||
-        /Limite total/i.test(line) ||
+        /Limite de cr\s*[eé]\s*dito/i.test(lineNorm) ||
+        /Limite dispon\s*[ií]\s*vel/i.test(lineNorm) ||
+        /Limite total/i.test(lineNorm) ||
         // Summary info
-        /Pr[oó]xima fatura/i.test(line) ||
-        /Total para pr[oó]ximas/i.test(line)) {
+        /Pr\s*[oó]\s*xima fatura/i.test(lineNorm) ||
+        /Total para pr\s*[oó]\s*ximas/i.test(lineNorm) ||
+        // "Simulação de Compras" — rate simulation header
+        /Simula\s*[çc]\s*[ãa]\s*o/i.test(lineNorm)) {
       continue;
     }
 

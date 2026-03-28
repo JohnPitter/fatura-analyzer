@@ -304,6 +304,42 @@ describe('parseItau', () => {
     const txs = parseItau(text);
     expect(txs).toHaveLength(0);
   });
+
+  it('excludes future installments from "Compras parceladas - proximas faturas" section', () => {
+    const text = [
+      '11/09 KIWIFY *Ebook5 06/06 5,61',
+      'educacao Barueri',
+      '13/09 HTM *Mentor 06/12 218,88',
+      'educacao Aparecida de',
+      // pdfjs splits accents: "pr ó ximas"
+      ' Compras parceladas - pr ó ximas faturas',
+      'DATA ESTABELECIMENTO VALOR EM R$',
+      '11/09 KIWIFY *Aprend 07/12 9,89',
+      '13/09 HTM *Mentor 07/12 218,88',
+      '28/02 DM *hostin 02/12 123,39',
+      'Pr ó xima fatura 1.456,80',
+    ].join('\n');
+    const txs = parseItau(text);
+    // Only the 2 transactions BEFORE the section header should be parsed
+    expect(txs).toHaveLength(2);
+    expect(txs[0].description).toBe('KIWIFY *Ebook5');
+    expect(txs[1].description).toBe('HTM *Mentor');
+    // The 07/12 installment versions should NOT appear
+    expect(txs.every(t => !t.installment?.startsWith('07/'))).toBe(true);
+  });
+
+  it('excludes limit info lines', () => {
+    const text = [
+      '20/02 DROGAVET RECIF 02/02 94,00',
+      'saude RECIFE',
+      'Limite de cr é dito 15.150,00',
+      'Limite dispon í vel 6.519,00',
+      'Limite total utilizado 8.631,00',
+    ].join('\n');
+    const txs = parseItau(text);
+    expect(txs).toHaveLength(1);
+    expect(txs[0].description).toBe('DROGAVET RECIF');
+  });
 });
 
 // ─── parseBradesco ─────────────────────────────────────────────────────────────
