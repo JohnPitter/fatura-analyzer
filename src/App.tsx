@@ -41,6 +41,7 @@ export default function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [filterBank, setFilterBank] = useState<'all' | 'itau' | 'bradesco'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [assignDropdownTx, setAssignDropdownTx] = useState<string | null>(null);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -885,21 +886,34 @@ export default function App() {
                                       <ChevronUp className="w-3 h-3" />
                                     </button>
                                     {people.length > 1 && (
-                                      <div className="relative ml-1 group/assign">
-                                        <button className="w-6 h-6 rounded flex items-center justify-center text-ink-300 hover:bg-plum-100 hover:text-plum-500 transition-all duration-150 cursor-pointer active:scale-90" title="Atribuir a uma pessoa">
+                                      <div className="relative ml-1">
+                                        <button
+                                          onClick={() => setAssignDropdownTx(assignDropdownTx === tx.id ? null : tx.id)}
+                                          className={`w-6 h-6 rounded flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 ${
+                                            assignDropdownTx === tx.id
+                                              ? 'bg-plum-100 text-plum-500'
+                                              : 'text-ink-300 hover:bg-plum-100 hover:text-plum-500'
+                                          }`}
+                                          title="Atribuir a uma pessoa"
+                                        >
                                           <UserPlus className="w-3 h-3" />
                                         </button>
-                                        <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg border border-sand-200 shadow-xl p-1 w-36 hidden group-hover/assign:block animate-scale-in">
-                                          {people.map(p => (
-                                            <button
-                                              key={p.id}
-                                              onClick={() => updateTransaction(tx.id, { assignedTo: p.id, splitPeople: 1 })}
-                                              className="w-full text-left px-2.5 py-1.5 rounded-md text-[12px] font-medium text-ink-600 hover:bg-plum-100 hover:text-plum-500 transition-all duration-150 cursor-pointer truncate"
-                                            >
-                                              {p.name}
-                                            </button>
-                                          ))}
-                                        </div>
+                                        {assignDropdownTx === tx.id && (
+                                          <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg border border-sand-200 shadow-xl p-1 w-36 animate-scale-in">
+                                            {people.map(p => (
+                                              <button
+                                                key={p.id}
+                                                onClick={() => {
+                                                  updateTransaction(tx.id, { assignedTo: p.id, splitPeople: 1 });
+                                                  setAssignDropdownTx(null);
+                                                }}
+                                                className="w-full text-left px-2.5 py-1.5 rounded-md text-[12px] font-medium text-ink-600 hover:bg-plum-100 hover:text-plum-500 transition-all duration-150 cursor-pointer truncate"
+                                              >
+                                                {p.name}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
