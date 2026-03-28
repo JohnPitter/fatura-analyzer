@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Upload, FileText, Trash2, Users, ChevronDown, ChevronUp,
   PieChart, ArrowUpDown, X, UserPlus, Receipt,
@@ -6,9 +6,11 @@ import {
   Shirt, Car, Home, Gamepad2, Cpu, Wrench, Pill, PawPrint,
   RefreshCw, Landmark, Package, TrendingDown, Filter,
   ShieldCheck, Lock, Eye, EyeOff, Download, Building2, Search,
+  History, Save, KeyRound, FolderOpen,
 } from 'lucide-react';
 import { parsePDF } from './parser';
 import { exportExcel, exportPDF } from './export';
+import { saveAnalysis, loadAnalysis, listAnalyses, deleteAnalysis } from './storage';
 import type { Transaction, Category, Person } from './types';
 import { CATEGORIES } from './types';
 
@@ -44,6 +46,14 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [assignDropdownTx, setAssignDropdownTx] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [savePassword, setSavePassword] = useState('');
+  const [loadPassword, setLoadPassword] = useState('');
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<{ id: string; name: string; date: string; totalGeral: number; transactionCount: number; uploadedFiles: string[] }[]>([]);
+  const [historyError, setHistoryError] = useState('');
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -228,6 +238,50 @@ export default function App() {
     setShowExportMenu(false);
   }, [getExportData]);
 
+  const refreshHistory = useCallback(async () => {
+    try {
+      const items = await listAnalyses();
+      setHistoryItems(items);
+    } catch { setHistoryItems([]); }
+  }, []);
+
+  useEffect(() => { refreshHistory(); }, [refreshHistory]);
+
+  const handleSave = useCallback(async () => {
+    if (!savePassword.trim() || !saveName.trim()) return;
+    setHistoryError('');
+    try {
+      await saveAnalysis(savePassword, saveName, transactions, people, uploadedFiles);
+      setShowSaveDialog(false);
+      setSaveName('');
+      setSavePassword('');
+      await refreshHistory();
+    } catch { setHistoryError('Erro ao salvar'); }
+  }, [savePassword, saveName, transactions, people, uploadedFiles, refreshHistory]);
+
+  const handleLoad = useCallback(async (id: string) => {
+    if (!loadPassword.trim()) { setHistoryError('Digite a senha'); return; }
+    setHistoryError('');
+    setLoadingId(id);
+    try {
+      const data = await loadAnalysis(id, loadPassword);
+      setTransactions(data.transactions);
+      setPeople(data.people);
+      setUploadedFiles(data.uploadedFiles);
+      setShowHistory(false);
+      setLoadPassword('');
+      setLoadingId(null);
+    } catch {
+      setHistoryError('Senha incorreta ou dados corrompidos');
+      setLoadingId(null);
+    }
+  }, [loadPassword]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    await deleteAnalysis(id);
+    await refreshHistory();
+  }, [refreshHistory]);
+
   const hasTransactions = transactions.length > 0;
 
   return (
@@ -276,8 +330,31 @@ export default function App() {
               </div>
               Privacidade
             </button>
+            {/* History button */}
+            <button
+              onClick={() => { setShowHistory(!showHistory); refreshHistory(); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-200 cursor-pointer ${
+                showHistory ? 'bg-ink-900 text-sand-100' : 'bg-sand-200 text-ink-700 hover:bg-sand-300'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              Historico
+              {historyItems.length > 0 && (
+                <span className="text-[10px] bg-ember-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{historyItems.length}</span>
+              )}
+            </button>
             {hasTransactions && (
               <>
+                {/* Save button */}
+                <button
+                  onClick={() => setShowSaveDialog(!showSaveDialog)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 cursor-pointer active:scale-[0.97] ${
+                    showSaveDialog ? 'bg-ink-900 text-sand-100' : 'bg-sand-200 text-ink-700 hover:bg-sand-300'
+                  }`}
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar
+                </button>
                 <div className="relative">
                   <button
                     onClick={() => setShowExportMenu(!showExportMenu)}
@@ -366,6 +443,134 @@ export default function App() {
                 <X className="w-4 h-4 text-jade-500" />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Dialog */}
+      {showSaveDialog && (
+        <div className="bg-sky-100 border-b border-sky-200 animate-fade-in-down">
+          <div className="w-full px-8 py-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center shrink-0 animate-bounce-in">
+                <Save className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[14px] font-semibold text-sky-600 mb-2">Salvar analise criptografada</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={saveName}
+                    onChange={e => setSaveName(e.target.value)}
+                    placeholder="Nome da analise (ex: Março 2026)"
+                    className="flex-1 px-3 py-2 rounded-lg border border-sky-200 bg-white text-[13px] text-ink-800 placeholder:text-ink-300 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 transition-all"
+                  />
+                  <div className="relative">
+                    <KeyRound className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-300 pointer-events-none" />
+                    <input
+                      type="password"
+                      value={savePassword}
+                      onChange={e => setSavePassword(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSave()}
+                      placeholder="Senha de criptografia"
+                      className="pl-8 pr-3 py-2 rounded-lg border border-sky-200 bg-white text-[13px] text-ink-800 placeholder:text-ink-300 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 transition-all w-52"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSave}
+                    disabled={!saveName.trim() || !savePassword.trim()}
+                    className="px-4 py-2 rounded-lg bg-sky-500 text-white text-[13px] font-medium hover:bg-sky-600 disabled:opacity-40 disabled:cursor-default transition-all cursor-pointer active:scale-[0.97]"
+                  >
+                    Criptografar e Salvar
+                  </button>
+                </div>
+                <p className="text-[11px] text-sky-500 mt-1.5 flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  Dados criptografados com AES-256-GCM e salvos no IndexedDB do navegador. Sem a senha, ninguem acessa.
+                </p>
+              </div>
+              <button onClick={() => setShowSaveDialog(false)} className="p-1 rounded-md hover:bg-sky-200 transition-colors cursor-pointer">
+                <X className="w-4 h-4 text-sky-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Panel */}
+      {showHistory && (
+        <div className="bg-sand-100 border-b border-sand-200 animate-fade-in-down">
+          <div className="w-full px-8 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[14px] font-semibold text-ink-800 flex items-center gap-2">
+                <History className="w-4 h-4 text-ink-500" />
+                Historico de Analises
+              </h3>
+              <button onClick={() => setShowHistory(false)} className="p-1 rounded-md hover:bg-sand-200 transition-colors cursor-pointer">
+                <X className="w-4 h-4 text-ink-400" />
+              </button>
+            </div>
+            {historyError && (
+              <p className="text-[12px] text-ruby-500 mb-2 animate-fade-in">{historyError}</p>
+            )}
+            {historyItems.length === 0 ? (
+              <p className="text-[13px] text-ink-400 py-4 text-center">Nenhuma analise salva.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1 max-w-xs">
+                    <KeyRound className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-300 pointer-events-none" />
+                    <input
+                      type="password"
+                      value={loadPassword}
+                      onChange={e => { setLoadPassword(e.target.value); setHistoryError(''); }}
+                      placeholder="Senha para desbloquear..."
+                      className="w-full pl-8 pr-3 py-2 rounded-lg border border-sand-200 bg-white text-[13px] text-ink-800 placeholder:text-ink-300 outline-none focus:border-ember-300 focus:ring-2 focus:ring-ember-200 transition-all"
+                    />
+                  </div>
+                </div>
+                {historyItems.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-white border border-sand-200 hover:border-sand-300 hover:shadow-sm transition-all duration-200 animate-fade-in-up"
+                    style={{ animationDelay: `${idx * 0.03}s` }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-3.5 h-3.5 text-ink-400 shrink-0" />
+                        <span className="text-[13px] font-medium text-ink-800 truncate">{item.name}</span>
+                        <span className="text-[11px] text-ink-400 shrink-0">
+                          {new Date(item.date).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 mt-1 text-[11px] text-ink-400">
+                        <span>{item.transactionCount} transacoes</span>
+                        <span>
+                          {item.totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                        <span className="truncate">{item.uploadedFiles.join(', ')}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 ml-3 shrink-0">
+                      <button
+                        onClick={() => handleLoad(item.id)}
+                        disabled={!loadPassword.trim() || loadingId === item.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ember-500 text-white text-[12px] font-medium hover:bg-ember-400 disabled:opacity-40 disabled:cursor-default transition-all cursor-pointer active:scale-[0.97]"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        {loadingId === item.id ? 'Decifrando...' : 'Abrir'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="p-1.5 rounded-lg text-ink-300 hover:bg-ruby-100 hover:text-ruby-500 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
