@@ -684,7 +684,7 @@ export default function App() {
               {/* Right Panel — Transactions + Bulk Split */}
               <div className="flex-1 min-w-0 space-y-6">
                 {/* Transactions Table */}
-                <div className="rounded-xl border border-sand-200 bg-white shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                <div className="rounded-xl border border-sand-200 bg-white shadow-sm animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
                   <div className="px-6 py-4 border-b border-sand-200 flex items-center justify-between gap-4">
                     <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2 shrink-0">
                       <Receipt className="w-4 h-4 text-ink-500" />
