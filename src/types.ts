@@ -26,6 +26,8 @@ export interface Transaction {
   installment?: string;
   splitPeople: number;
   isPersonal: boolean;
+  /** When set, the full value is assigned to this person only (not split). */
+  assignedTo?: string;
 }
 
 export interface CategoryInfo {

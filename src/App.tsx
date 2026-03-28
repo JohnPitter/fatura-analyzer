@@ -134,27 +134,46 @@ export default function App() {
   }, [transactions, filterCategory, filterBank, sortField, sortDir]);
 
   const categoryBreakdown = useMemo(() => {
+    const myId = people[0]?.id;
     const map = new Map<Category, { total: number; count: number; personalTotal: number }>();
     for (const tx of transactions) {
       const existing = map.get(tx.category) ?? { total: 0, count: 0, personalTotal: 0 };
       existing.total += tx.value;
       existing.count += 1;
-      existing.personalTotal += tx.value / tx.splitPeople;
+      if (tx.assignedTo) {
+        existing.personalTotal += tx.assignedTo === myId ? tx.value : 0;
+      } else {
+        existing.personalTotal += tx.value / tx.splitPeople;
+      }
       map.set(tx.category, existing);
     }
     return Array.from(map.entries())
       .map(([key, val]) => ({ category: key, ...val }))
       .sort((a, b) => b.total - a.total);
-  }, [transactions]);
+  }, [transactions, people]);
 
   const totalGeral = useMemo(() => transactions.reduce((s, t) => s + t.value, 0), [transactions]);
-  const totalPessoal = useMemo(() => transactions.reduce((s, t) => s + t.value / t.splitPeople, 0), [transactions]);
+  const totalPessoal = useMemo(() => {
+    const myId = people[0]?.id;
+    return transactions.reduce((s, t) => {
+      if (t.assignedTo) {
+        return s + (t.assignedTo === myId ? t.value : 0);
+      }
+      return s + t.value / t.splitPeople;
+    }, 0);
+  }, [transactions, people]);
 
   const personTotals = useMemo(() => {
     if (people.length <= 1) return [];
     const totals = people.map(p => ({ person: p, total: 0 }));
+    const personIndexMap = new Map(people.map((p, i) => [p.id, i]));
     for (const tx of transactions) {
-      if (tx.splitPeople > 1) {
+      if (tx.assignedTo) {
+        const idx = personIndexMap.get(tx.assignedTo);
+        if (idx !== undefined) {
+          totals[idx].total += tx.value;
+        }
+      } else if (tx.splitPeople > 1) {
         const perPerson = tx.value / tx.splitPeople;
         totals[0].total += perPerson;
         const othersCount = tx.splitPeople - 1;
@@ -182,12 +201,17 @@ export default function App() {
   }, [transactions]);
 
   const exportCSV = useCallback(() => {
-    const header = 'Data,Descricao,Categoria,Valor,Banco,Parcela,Dividido Por,Valor Pessoal\n';
+    const myId = people[0]?.id;
+    const personNameMap = new Map(people.map(p => [p.id, p.name]));
+    const header = 'Data,Descricao,Categoria,Valor,Banco,Parcela,Atribuido A,Dividido Por,Valor Pessoal\n';
     const rows = filteredTransactions.map(tx => {
       const cat = CATEGORIES[tx.category].label;
-      const personal = (tx.value / tx.splitPeople).toFixed(2);
+      const assignedName = tx.assignedTo ? (personNameMap.get(tx.assignedTo) ?? '-') : '-';
+      const personal = tx.assignedTo
+        ? (tx.assignedTo === myId ? tx.value : 0).toFixed(2)
+        : (tx.value / tx.splitPeople).toFixed(2);
       const desc = tx.description.replace(/,/g, ' ');
-      return `${tx.date},"${desc}",${cat},${tx.value.toFixed(2)},${tx.source === 'itau' ? 'Itau' : 'Bradesco'},${tx.installment ?? '-'},${tx.splitPeople},${personal}`;
+      return `${tx.date},"${desc}",${cat},${tx.value.toFixed(2)},${tx.source === 'itau' ? 'Itau' : 'Bradesco'},${tx.installment ?? '-'},${assignedName},${tx.splitPeople},${personal}`;
     }).join('\n');
 
     const totalsSection = [
@@ -786,40 +810,77 @@ export default function App() {
                               </td>
                               <td className="px-4 py-3">
                                 <div>
-                                  <span className="text-[14px] font-bold text-ink-900 font-mono">
+                                  <span className={`text-[14px] font-bold font-mono ${tx.assignedTo && tx.assignedTo !== people[0]?.id ? 'text-ink-400 line-through' : 'text-ink-900'}`}>
                                     {formatBRL(tx.value)}
                                   </span>
-                                  {tx.splitPeople > 1 && (
+                                  {!tx.assignedTo && tx.splitPeople > 1 && (
                                     <span className="block text-[11px] text-jade-500 font-mono animate-fade-in">
                                       ÷{tx.splitPeople} = {formatBRL(tx.value / tx.splitPeople)}
+                                    </span>
+                                  )}
+                                  {tx.assignedTo && tx.assignedTo !== people[0]?.id && (
+                                    <span className="block text-[11px] text-plum-500 font-mono animate-fade-in">
+                                      nao meu
                                     </span>
                                   )}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => updateTransaction(tx.id, {
-                                      splitPeople: Math.max(1, tx.splitPeople - 1)
-                                    })}
-                                    disabled={tx.splitPeople <= 1}
-                                    className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 disabled:opacity-30 cursor-pointer disabled:cursor-default active:scale-90"
-                                  >
-                                    <ChevronDown className="w-3 h-3" />
-                                  </button>
-                                  <span className={`text-[13px] font-mono font-medium w-8 text-center transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-700'}`}>
-                                    {tx.splitPeople}
-                                  </span>
-                                  <button
-                                    onClick={() => updateTransaction(tx.id, {
-                                      splitPeople: tx.splitPeople + 1
-                                    })}
-                                    className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 cursor-pointer active:scale-90"
-                                  >
-                                    <ChevronUp className="w-3 h-3" />
-                                  </button>
-                                  <Users className={`w-3 h-3 ml-1 transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-300'}`} />
-                                </div>
+                                {tx.assignedTo ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-plum-100 text-plum-500 font-medium truncate max-w-[80px]">
+                                      {people.find(p => p.id === tx.assignedTo)?.name ?? '?'}
+                                    </span>
+                                    <button
+                                      onClick={() => updateTransaction(tx.id, { assignedTo: undefined })}
+                                      className="w-5 h-5 rounded flex items-center justify-center text-ink-300 hover:bg-ruby-100 hover:text-ruby-500 transition-all duration-150 cursor-pointer active:scale-90"
+                                      title="Remover atribuicao"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => updateTransaction(tx.id, {
+                                        splitPeople: Math.max(1, tx.splitPeople - 1)
+                                      })}
+                                      disabled={tx.splitPeople <= 1}
+                                      className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 disabled:opacity-30 cursor-pointer disabled:cursor-default active:scale-90"
+                                    >
+                                      <ChevronDown className="w-3 h-3" />
+                                    </button>
+                                    <span className={`text-[13px] font-mono font-medium w-8 text-center transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-700'}`}>
+                                      {tx.splitPeople}
+                                    </span>
+                                    <button
+                                      onClick={() => updateTransaction(tx.id, {
+                                        splitPeople: tx.splitPeople + 1
+                                      })}
+                                      className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 cursor-pointer active:scale-90"
+                                    >
+                                      <ChevronUp className="w-3 h-3" />
+                                    </button>
+                                    {people.length > 1 && (
+                                      <div className="relative ml-1 group/assign">
+                                        <button className="w-6 h-6 rounded flex items-center justify-center text-ink-300 hover:bg-plum-100 hover:text-plum-500 transition-all duration-150 cursor-pointer active:scale-90" title="Atribuir a uma pessoa">
+                                          <UserPlus className="w-3 h-3" />
+                                        </button>
+                                        <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg border border-sand-200 shadow-xl p-1 w-36 hidden group-hover/assign:block animate-scale-in">
+                                          {people.map(p => (
+                                            <button
+                                              key={p.id}
+                                              onClick={() => updateTransaction(tx.id, { assignedTo: p.id, splitPeople: 1 })}
+                                              className="w-full text-left px-2.5 py-1.5 rounded-md text-[12px] font-medium text-ink-600 hover:bg-plum-100 hover:text-plum-500 transition-all duration-150 cursor-pointer truncate"
+                                            >
+                                              {p.name}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-3">
                                 <button
