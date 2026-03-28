@@ -5,7 +5,7 @@ import {
   UtensilsCrossed, ChefHat, ShoppingCart, Heart, GraduationCap,
   Shirt, Car, Home, Gamepad2, Cpu, Wrench, Pill, PawPrint,
   RefreshCw, Landmark, Package, TrendingDown, Filter,
-  ShieldCheck, Lock, Eye, EyeOff, Download, Building2,
+  ShieldCheck, Lock, Eye, EyeOff, Download, Building2, Search,
 } from 'lucide-react';
 import { parsePDF } from './parser';
 import type { Transaction, Category, Person } from './types';
@@ -40,6 +40,7 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [filterBank, setFilterBank] = useState<'all' | 'itau' | 'bradesco'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -120,6 +121,10 @@ export default function App() {
     if (filterBank !== 'all') {
       txs = txs.filter(t => t.source === filterBank);
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      txs = txs.filter(t => t.description.toLowerCase().includes(q));
+    }
     txs.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -131,7 +136,7 @@ export default function App() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return txs;
-  }, [transactions, filterCategory, filterBank, sortField, sortDir]);
+  }, [transactions, filterCategory, filterBank, searchQuery, sortField, sortDir]);
 
   const categoryBreakdown = useMemo(() => {
     const myId = people[0]?.id;
@@ -679,15 +684,33 @@ export default function App() {
               <div className="flex-1 min-w-0 space-y-6">
                 {/* Transactions Table */}
                 <div className="rounded-xl border border-sand-200 bg-white shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                  <div className="px-6 py-4 border-b border-sand-200 flex items-center justify-between">
-                    <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2">
+                  <div className="px-6 py-4 border-b border-sand-200 flex items-center justify-between gap-4">
+                    <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2 shrink-0">
                       <Receipt className="w-4 h-4 text-ink-500" />
                       Transacoes
                       <span className="text-[12px] font-normal text-ink-400">
                         ({filteredTransactions.length})
                       </span>
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="relative flex-1 max-w-xs">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-300 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Buscar descricao..."
+                        className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-sand-200 bg-sand-50 text-[12px] text-ink-800 placeholder:text-ink-300 outline-none focus:border-ember-300 focus:ring-2 focus:ring-ember-200 transition-all duration-200"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-500 cursor-pointer transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                       {filterBank !== 'all' && (
                         <button
                           onClick={() => setFilterBank('all')}
