@@ -188,9 +188,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header — full width */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-sand-50/80 border-b border-sand-200 animate-fade-in-down">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="w-full px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-ink-900 flex items-center justify-center hover:rotate-6 transition-transform duration-300">
               <Receipt className="w-5 h-5 text-sand-100" />
@@ -245,10 +245,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Privacy Banner */}
+      {/* Privacy Banner — full width */}
       {showPrivacy && (
         <div className="bg-jade-100 border-b border-jade-200 animate-fade-in-down">
-          <div className="max-w-6xl mx-auto px-6 py-4">
+          <div className="w-full px-8 py-4">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-jade-500 flex items-center justify-center shrink-0 animate-bounce-in">
                 <Lock className="w-5 h-5 text-white" />
@@ -278,7 +278,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="w-full px-8 py-8">
         {/* Empty State */}
         {!hasTransactions && !isLoading && (
           <div className="flex flex-col items-center justify-center py-32">
@@ -347,8 +347,8 @@ export default function App() {
               ))}
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Summary Cards — full width, 3 across */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
                 {
                   label: 'Total da Fatura',
@@ -375,7 +375,7 @@ export default function App() {
               ].map((card) => (
                 <div
                   key={card.label}
-                  className="rounded-2xl border border-sand-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-sand-300 hover:-translate-y-0.5 transition-all duration-300 animate-fade-in-up"
+                  className="rounded-xl border border-sand-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-sand-300 hover:-translate-y-0.5 transition-all duration-300 animate-fade-in-up"
                   style={{ animationDelay: card.delay }}
                 >
                   <p className="text-[11px] text-ink-400 uppercase tracking-wider font-medium">{card.label}</p>
@@ -390,9 +390,9 @@ export default function App() {
               ))}
             </div>
 
-            {/* Split Panel */}
+            {/* Split Panel — full width above the 2-col layout */}
             {showSplitPanel && (
-              <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-sm animate-fade-in-down">
+              <div className="rounded-xl border border-sand-200 bg-white p-6 shadow-sm animate-fade-in-down">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2">
                     <Users className="w-4 h-4 text-ink-500" />
@@ -461,309 +461,328 @@ export default function App() {
               </div>
             )}
 
-            {/* Category Breakdown */}
-            <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-sm animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2">
-                  <PieChart className="w-4 h-4 text-ink-500" />
-                  Gastos por Categoria
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {categoryBreakdown.map(({ category, total, count, personalTotal }, idx) => {
-                  const info = CATEGORIES[category];
-                  const IconComp = ICON_MAP[info.icon] ?? Package;
-                  const pct = maxCategoryTotal > 0 ? (total / maxCategoryTotal) * 100 : 0;
+            {/* 2-Column Dashboard Layout */}
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Left Panel — Category Breakdown (sticky) */}
+              <div className="w-full lg:w-[380px] shrink-0">
+                <div className="lg:sticky lg:top-20">
+                  <div className="rounded-xl border border-sand-200 bg-white p-6 shadow-sm animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                    <div className="flex items-center justify-between mb-5">
+                      <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2">
+                        <PieChart className="w-4 h-4 text-ink-500" />
+                        Gastos por Categoria
+                      </h3>
+                      {filterCategory !== 'all' && (
+                        <button
+                          onClick={() => setFilterCategory('all')}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-ember-100 text-ember-500 text-[11px] font-medium hover:bg-ember-200 transition-all duration-200 cursor-pointer animate-scale-in"
+                        >
+                          Limpar
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {categoryBreakdown.map(({ category, total, count, personalTotal }, idx) => {
+                        const info = CATEGORIES[category];
+                        const IconComp = ICON_MAP[info.icon] ?? Package;
+                        const pct = maxCategoryTotal > 0 ? (total / maxCategoryTotal) * 100 : 0;
 
-                  return (
-                    <button
-                      key={category}
-                      onClick={() => setFilterCategory(filterCategory === category ? 'all' : category)}
-                      className={`w-full text-left group cursor-pointer rounded-xl p-3 transition-all duration-200 hover:scale-[1.005] animate-fade-in-up ${
-                        filterCategory === category
-                          ? 'bg-ink-900 text-sand-100 shadow-lg shadow-ink-900/10'
-                          : 'hover:bg-sand-50'
-                      }`}
-                      style={{ animationDelay: `${0.25 + idx * 0.04}s` }}
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 ${
-                            filterCategory === category ? 'bg-sand-100/10' : info.bgColor
-                          }`}>
-                            <IconComp className={`w-3.5 h-3.5 ${
-                              filterCategory === category ? 'text-sand-100' : info.color
-                            }`} />
-                          </div>
-                          <span className={`text-[13px] font-medium ${
-                            filterCategory === category ? 'text-sand-100' : 'text-ink-700'
-                          }`}>
-                            {info.label}
-                          </span>
-                          <span className={`text-[11px] ${
-                            filterCategory === category ? 'text-sand-300' : 'text-ink-400'
-                          }`}>
-                            {count}x
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-[14px] font-bold font-mono ${
-                            filterCategory === category ? 'text-sand-100' : 'text-ink-800'
-                          }`}>
-                            {formatBRL(total)}
-                          </span>
-                          {personalTotal < total && (
-                            <span className={`text-[11px] ml-2 ${
-                              filterCategory === category ? 'text-sand-300' : 'text-ink-400'
+                        return (
+                          <button
+                            key={category}
+                            onClick={() => setFilterCategory(filterCategory === category ? 'all' : category)}
+                            className={`w-full text-left group cursor-pointer rounded-xl p-3 transition-all duration-200 hover:scale-[1.005] animate-fade-in-up ${
+                              filterCategory === category
+                                ? 'bg-ink-900 text-sand-100 shadow-lg shadow-ink-900/10'
+                                : 'hover:bg-sand-50'
+                            }`}
+                            style={{ animationDelay: `${0.25 + idx * 0.04}s` }}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2.5">
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 ${
+                                  filterCategory === category ? 'bg-sand-100/10' : info.bgColor
+                                }`}>
+                                  <IconComp className={`w-3.5 h-3.5 ${
+                                    filterCategory === category ? 'text-sand-100' : info.color
+                                  }`} />
+                                </div>
+                                <span className={`text-[13px] font-medium ${
+                                  filterCategory === category ? 'text-sand-100' : 'text-ink-700'
+                                }`}>
+                                  {info.label}
+                                </span>
+                                <span className={`text-[11px] ${
+                                  filterCategory === category ? 'text-sand-300' : 'text-ink-400'
+                                }`}>
+                                  {count}x
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-[14px] font-bold font-mono ${
+                                  filterCategory === category ? 'text-sand-100' : 'text-ink-800'
+                                }`}>
+                                  {formatBRL(total)}
+                                </span>
+                                {personalTotal < total && (
+                                  <span className={`text-[11px] block ${
+                                    filterCategory === category ? 'text-sand-300' : 'text-ink-400'
+                                  }`}>
+                                    pessoal: {formatBRL(personalTotal)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className={`h-1.5 rounded-full overflow-hidden ${
+                              filterCategory === category ? 'bg-sand-100/10' : 'bg-sand-100'
                             }`}>
-                              (pessoal: {formatBRL(personalTotal)})
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className={`h-1.5 rounded-full overflow-hidden ${
-                        filterCategory === category ? 'bg-sand-100/10' : 'bg-sand-100'
-                      }`}>
-                        <div
-                          className={`h-full rounded-full bar-grow ${
-                            filterCategory === category ? 'bg-ember-400' : 'bg-ember-500/60'
-                          }`}
-                          style={{ width: `${pct}%`, animationDelay: `${0.4 + idx * 0.06}s` }}
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Transactions Table */}
-            <div className="rounded-2xl border border-sand-200 bg-white shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <div className="px-6 py-4 border-b border-sand-200 flex items-center justify-between">
-                <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-ink-500" />
-                  Transacoes
-                  <span className="text-[12px] font-normal text-ink-400">
-                    ({filteredTransactions.length})
-                  </span>
-                </h3>
-                <div className="flex items-center gap-2">
-                  {filterCategory !== 'all' && (
-                    <button
-                      onClick={() => setFilterCategory('all')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ember-100 text-ember-500 text-[12px] font-medium hover:bg-ember-200 transition-all duration-200 cursor-pointer animate-scale-in"
-                    >
-                      <Filter className="w-3 h-3" />
-                      {CATEGORIES[filterCategory].label}
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                              <div
+                                className={`h-full rounded-full bar-grow ${
+                                  filterCategory === category ? 'bg-ember-400' : 'bg-ember-500/60'
+                                }`}
+                                style={{ width: `${pct}%`, animationDelay: `${0.4 + idx * 0.06}s` }}
+                              />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-sand-200 bg-sand-50/50">
-                      {[
-                        { key: 'date' as SortField, label: 'Data', w: 'w-20' },
-                        { key: 'description' as SortField, label: 'Descricao', w: '' },
-                        { key: 'category' as SortField, label: 'Categoria', w: 'w-36' },
-                        { key: 'value' as SortField, label: 'Valor', w: 'w-32' },
-                      ].map(col => (
-                        <th
-                          key={col.key}
-                          className={`px-4 py-3 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider cursor-pointer hover:text-ink-600 transition-colors ${col.w}`}
-                          onClick={() => toggleSort(col.key)}
+              {/* Right Panel — Transactions + Bulk Split */}
+              <div className="flex-1 min-w-0 space-y-6">
+                {/* Transactions Table */}
+                <div className="rounded-xl border border-sand-200 bg-white shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  <div className="px-6 py-4 border-b border-sand-200 flex items-center justify-between">
+                    <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2">
+                      <Receipt className="w-4 h-4 text-ink-500" />
+                      Transacoes
+                      <span className="text-[12px] font-normal text-ink-400">
+                        ({filteredTransactions.length})
+                      </span>
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {filterCategory !== 'all' && (
+                        <button
+                          onClick={() => setFilterCategory('all')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ember-100 text-ember-500 text-[12px] font-medium hover:bg-ember-200 transition-all duration-200 cursor-pointer animate-scale-in"
                         >
-                          <span className="flex items-center gap-1">
-                            {col.label}
-                            <ArrowUpDown className={`w-3 h-3 transition-transform duration-200 ${sortField === col.key ? 'text-ember-500 scale-110' : ''}`} />
-                          </span>
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider w-28">
-                        Dividir
-                      </th>
-                      <th className="w-10" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTransactions.map((tx, idx) => {
-                      const catInfo = CATEGORIES[tx.category];
-                      const IconComp = ICON_MAP[catInfo.icon] ?? Package;
-                      const isExpanded = expandedTx === tx.id;
+                          <Filter className="w-3 h-3" />
+                          {CATEGORIES[filterCategory].label}
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                      return (
-                        <tr
-                          key={tx.id}
-                          className="border-b border-sand-100 hover:bg-sand-50/80 transition-all duration-150 group row-enter"
-                          style={{ animationDelay: `${Math.min(idx * 0.02, 0.5)}s` }}
-                        >
-                          <td className="px-4 py-3 text-[13px] text-ink-500 font-mono">
-                            {tx.date}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[13px] text-ink-800 font-medium">
-                                {tx.description}
-                              </span>
-                              {tx.installment && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-500 font-mono font-medium">
-                                  {tx.installment}
-                                </span>
-                              )}
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                tx.source === 'itau' ? 'bg-ember-100 text-ember-500' : 'bg-ruby-100 text-ruby-500'
-                              }`}>
-                                {tx.source === 'itau' ? 'Itau' : 'Bradesco'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 relative">
-                            <button
-                              onClick={() => setExpandedTx(isExpanded ? null : tx.id)}
-                              className="cursor-pointer"
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-sand-200 bg-sand-50/50">
+                          {[
+                            { key: 'date' as SortField, label: 'Data', w: 'w-20' },
+                            { key: 'description' as SortField, label: 'Descricao', w: '' },
+                            { key: 'category' as SortField, label: 'Categoria', w: 'w-36' },
+                            { key: 'value' as SortField, label: 'Valor', w: 'w-32' },
+                          ].map(col => (
+                            <th
+                              key={col.key}
+                              className={`px-4 py-3 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider cursor-pointer hover:text-ink-600 transition-colors ${col.w}`}
+                              onClick={() => toggleSort(col.key)}
                             >
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all duration-200 hover:shadow-sm ${catInfo.bgColor} ${catInfo.color}`}>
-                                <IconComp className="w-3 h-3" />
-                                {catInfo.label}
-                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                              <span className="flex items-center gap-1">
+                                {col.label}
+                                <ArrowUpDown className={`w-3 h-3 transition-transform duration-200 ${sortField === col.key ? 'text-ember-500 scale-110' : ''}`} />
                               </span>
-                            </button>
-                            {isExpanded && (
-                              <div className="absolute z-20 mt-1 bg-white rounded-xl border border-sand-200 shadow-xl p-2 grid grid-cols-2 gap-1 w-72 animate-scale-in">
-                                {Object.values(CATEGORIES).map(cat => {
-                                  const CatIcon = ICON_MAP[cat.icon] ?? Package;
-                                  return (
-                                    <button
-                                      key={cat.key}
-                                      onClick={() => {
-                                        updateTransaction(tx.id, { category: cat.key });
-                                        setExpandedTx(null);
-                                      }}
-                                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 cursor-pointer hover:scale-[1.02] ${
-                                        tx.category === cat.key
-                                          ? 'bg-ink-900 text-sand-100'
-                                          : 'hover:bg-sand-100 text-ink-600'
-                                      }`}
-                                    >
-                                      <CatIcon className="w-3 h-3" />
-                                      {cat.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div>
-                              <span className="text-[14px] font-bold text-ink-900 font-mono">
-                                {formatBRL(tx.value)}
-                              </span>
-                              {tx.splitPeople > 1 && (
-                                <span className="block text-[11px] text-jade-500 font-mono animate-fade-in">
-                                  ÷{tx.splitPeople} = {formatBRL(tx.value / tx.splitPeople)}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => updateTransaction(tx.id, {
-                                  splitPeople: Math.max(1, tx.splitPeople - 1)
-                                })}
-                                disabled={tx.splitPeople <= 1}
-                                className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 disabled:opacity-30 cursor-pointer disabled:cursor-default active:scale-90"
-                              >
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
-                              <span className={`text-[13px] font-mono font-medium w-8 text-center transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-700'}`}>
-                                {tx.splitPeople}
-                              </span>
-                              <button
-                                onClick={() => updateTransaction(tx.id, {
-                                  splitPeople: tx.splitPeople + 1
-                                })}
-                                className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 cursor-pointer active:scale-90"
-                              >
-                                <ChevronUp className="w-3 h-3" />
-                              </button>
-                              <Users className={`w-3 h-3 ml-1 transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-300'}`} />
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              onClick={() => removeTransaction(tx.id)}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-ruby-100 text-ink-300 hover:text-ruby-500 transition-all duration-200 cursor-pointer active:scale-90"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider w-28">
+                            Dividir
+                          </th>
+                          <th className="w-10" />
                         </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTransactions.map((tx, idx) => {
+                          const catInfo = CATEGORIES[tx.category];
+                          const IconComp = ICON_MAP[catInfo.icon] ?? Package;
+                          const isExpanded = expandedTx === tx.id;
+
+                          return (
+                            <tr
+                              key={tx.id}
+                              className="border-b border-sand-100 hover:bg-sand-50/80 transition-all duration-150 group row-enter"
+                              style={{ animationDelay: `${Math.min(idx * 0.02, 0.5)}s` }}
+                            >
+                              <td className="px-4 py-3 text-[13px] text-ink-500 font-mono">
+                                {tx.date}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13px] text-ink-800 font-medium">
+                                    {tx.description}
+                                  </span>
+                                  {tx.installment && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-500 font-mono font-medium">
+                                      {tx.installment}
+                                    </span>
+                                  )}
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    tx.source === 'itau' ? 'bg-ember-100 text-ember-500' : 'bg-ruby-100 text-ruby-500'
+                                  }`}>
+                                    {tx.source === 'itau' ? 'Itau' : 'Bradesco'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 relative">
+                                <button
+                                  onClick={() => setExpandedTx(isExpanded ? null : tx.id)}
+                                  className="cursor-pointer"
+                                >
+                                  <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all duration-200 hover:shadow-sm ${catInfo.bgColor} ${catInfo.color}`}>
+                                    <IconComp className="w-3 h-3" />
+                                    {catInfo.label}
+                                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </span>
+                                </button>
+                                {isExpanded && (
+                                  <div className="absolute z-20 mt-1 bg-white rounded-xl border border-sand-200 shadow-xl p-2 grid grid-cols-2 gap-1 w-72 animate-scale-in">
+                                    {Object.values(CATEGORIES).map(cat => {
+                                      const CatIcon = ICON_MAP[cat.icon] ?? Package;
+                                      return (
+                                        <button
+                                          key={cat.key}
+                                          onClick={() => {
+                                            updateTransaction(tx.id, { category: cat.key });
+                                            setExpandedTx(null);
+                                          }}
+                                          className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 cursor-pointer hover:scale-[1.02] ${
+                                            tx.category === cat.key
+                                              ? 'bg-ink-900 text-sand-100'
+                                              : 'hover:bg-sand-100 text-ink-600'
+                                          }`}
+                                        >
+                                          <CatIcon className="w-3 h-3" />
+                                          {cat.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div>
+                                  <span className="text-[14px] font-bold text-ink-900 font-mono">
+                                    {formatBRL(tx.value)}
+                                  </span>
+                                  {tx.splitPeople > 1 && (
+                                    <span className="block text-[11px] text-jade-500 font-mono animate-fade-in">
+                                      ÷{tx.splitPeople} = {formatBRL(tx.value / tx.splitPeople)}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => updateTransaction(tx.id, {
+                                      splitPeople: Math.max(1, tx.splitPeople - 1)
+                                    })}
+                                    disabled={tx.splitPeople <= 1}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 disabled:opacity-30 cursor-pointer disabled:cursor-default active:scale-90"
+                                  >
+                                    <ChevronDown className="w-3 h-3" />
+                                  </button>
+                                  <span className={`text-[13px] font-mono font-medium w-8 text-center transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-700'}`}>
+                                    {tx.splitPeople}
+                                  </span>
+                                  <button
+                                    onClick={() => updateTransaction(tx.id, {
+                                      splitPeople: tx.splitPeople + 1
+                                    })}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-ink-400 hover:bg-sand-200 hover:text-ink-600 transition-all duration-150 cursor-pointer active:scale-90"
+                                  >
+                                    <ChevronUp className="w-3 h-3" />
+                                  </button>
+                                  <Users className={`w-3 h-3 ml-1 transition-colors duration-200 ${tx.splitPeople > 1 ? 'text-jade-500' : 'text-ink-300'}`} />
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => removeTransaction(tx.id)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-ruby-100 text-ink-300 hover:text-ruby-500 transition-all duration-200 cursor-pointer active:scale-90"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Bulk Split */}
+                <div className="rounded-xl border border-sand-200 bg-white p-6 shadow-sm animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
+                  <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2 mb-4">
+                    <Users className="w-4 h-4 text-ink-500" />
+                    Dividir em massa
+                  </h3>
+                  <p className="text-[13px] text-ink-400 mb-4">
+                    Selecione quantas pessoas para dividir todas as transacoes de uma categoria.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {categoryBreakdown.map(({ category, count }, idx) => {
+                      const info = CATEGORIES[category];
+                      const IconComp = ICON_MAP[info.icon] ?? Package;
+                      return (
+                        <div
+                          key={category}
+                          className="rounded-xl border border-sand-200 p-3 hover:border-sand-300 hover:shadow-sm transition-all duration-200 animate-scale-in"
+                          style={{ animationDelay: `${0.4 + idx * 0.03}s` }}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <IconComp className={`w-3.5 h-3.5 ${info.color}`} />
+                            <span className="text-[12px] font-medium text-ink-700">{info.label}</span>
+                            <span className="text-[10px] text-ink-400">{count}x</span>
+                          </div>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4].map(n => (
+                              <button
+                                key={n}
+                                onClick={() => {
+                                  setTransactions(prev => prev.map(t =>
+                                    t.category === category ? { ...t, splitPeople: n } : t
+                                  ));
+                                }}
+                                className={`flex-1 py-1 rounded text-[12px] font-mono font-medium transition-all duration-200 cursor-pointer active:scale-95 ${
+                                  transactions.some(t => t.category === category && t.splitPeople === n)
+                                    ? 'bg-ink-900 text-sand-100 shadow-sm'
+                                    : 'bg-sand-100 text-ink-500 hover:bg-sand-200'
+                                }`}
+                              >
+                                ÷{n}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Bulk Split */}
-            <div className="rounded-2xl border border-sand-200 bg-white p-6 shadow-sm animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
-              <h3 className="text-[15px] font-semibold text-ink-800 flex items-center gap-2 mb-4">
-                <Users className="w-4 h-4 text-ink-500" />
-                Dividir em massa
-              </h3>
-              <p className="text-[13px] text-ink-400 mb-4">
-                Selecione quantas pessoas para dividir todas as transacoes de uma categoria.
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {categoryBreakdown.map(({ category, count }, idx) => {
-                  const info = CATEGORIES[category];
-                  const IconComp = ICON_MAP[info.icon] ?? Package;
-                  return (
-                    <div
-                      key={category}
-                      className="rounded-xl border border-sand-200 p-3 hover:border-sand-300 hover:shadow-sm transition-all duration-200 animate-scale-in"
-                      style={{ animationDelay: `${0.4 + idx * 0.03}s` }}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <IconComp className={`w-3.5 h-3.5 ${info.color}`} />
-                        <span className="text-[12px] font-medium text-ink-700">{info.label}</span>
-                        <span className="text-[10px] text-ink-400">{count}x</span>
-                      </div>
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4].map(n => (
-                          <button
-                            key={n}
-                            onClick={() => {
-                              setTransactions(prev => prev.map(t =>
-                                t.category === category ? { ...t, splitPeople: n } : t
-                              ));
-                            }}
-                            className={`flex-1 py-1 rounded text-[12px] font-mono font-medium transition-all duration-200 cursor-pointer active:scale-95 ${
-                              transactions.some(t => t.category === category && t.splitPeople === n)
-                                ? 'bg-ink-900 text-sand-100 shadow-sm'
-                                : 'bg-sand-100 text-ink-500 hover:bg-sand-200'
-                            }`}
-                          >
-                            ÷{n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* Footer */}
+      {/* Footer — full width */}
       <footer className="border-t border-sand-200 mt-16">
-        <div className="max-w-6xl mx-auto px-6 py-8 text-center">
+        <div className="w-full px-8 py-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
             <ShieldCheck className="w-4 h-4 text-jade-500" />
             <p className="text-[13px] font-medium text-ink-600">
