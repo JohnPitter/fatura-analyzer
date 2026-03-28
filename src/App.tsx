@@ -5,7 +5,7 @@ import {
   UtensilsCrossed, ChefHat, ShoppingCart, Heart, GraduationCap,
   Shirt, Car, Home, Gamepad2, Cpu, Wrench, Pill, PawPrint,
   RefreshCw, Landmark, Package, TrendingDown, Filter,
-  ShieldCheck, Lock, Eye, EyeOff,
+  ShieldCheck, Lock, Eye, EyeOff, Download, Building2,
 } from 'lucide-react';
 import { parsePDF } from './parser';
 import type { Transaction, Category, Person } from './types';
@@ -39,6 +39,7 @@ export default function App() {
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [filterBank, setFilterBank] = useState<'all' | 'itau' | 'bradesco'>('all');
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -116,6 +117,9 @@ export default function App() {
     if (filterCategory !== 'all') {
       txs = txs.filter(t => t.category === filterCategory);
     }
+    if (filterBank !== 'all') {
+      txs = txs.filter(t => t.source === filterBank);
+    }
     txs.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -127,7 +131,7 @@ export default function App() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return txs;
-  }, [transactions, filterCategory, sortField, sortDir]);
+  }, [transactions, filterCategory, filterBank, sortField, sortDir]);
 
   const categoryBreakdown = useMemo(() => {
     const map = new Map<Category, { total: number; count: number; personalTotal: number }>();
@@ -167,6 +171,57 @@ export default function App() {
   const maxCategoryTotal = useMemo(() => {
     return categoryBreakdown.length > 0 ? categoryBreakdown[0].total : 1;
   }, [categoryBreakdown]);
+
+  const bankBreakdown = useMemo(() => {
+    const itauTxs = transactions.filter(t => t.source === 'itau');
+    const bradescoTxs = transactions.filter(t => t.source === 'bradesco');
+    return {
+      itau: { count: itauTxs.length, total: itauTxs.reduce((s, t) => s + t.value, 0) },
+      bradesco: { count: bradescoTxs.length, total: bradescoTxs.reduce((s, t) => s + t.value, 0) },
+    };
+  }, [transactions]);
+
+  const exportCSV = useCallback(() => {
+    const header = 'Data,Descricao,Categoria,Valor,Banco,Parcela,Dividido Por,Valor Pessoal\n';
+    const rows = filteredTransactions.map(tx => {
+      const cat = CATEGORIES[tx.category].label;
+      const personal = (tx.value / tx.splitPeople).toFixed(2);
+      const desc = tx.description.replace(/,/g, ' ');
+      return `${tx.date},"${desc}",${cat},${tx.value.toFixed(2)},${tx.source === 'itau' ? 'Itau' : 'Bradesco'},${tx.installment ?? '-'},${tx.splitPeople},${personal}`;
+    }).join('\n');
+
+    const totalsSection = [
+      '',
+      'RESUMO',
+      `Total Geral,${totalGeral.toFixed(2)}`,
+      `Total Pessoal,${totalPessoal.toFixed(2)}`,
+      '',
+      'POR CATEGORIA',
+      ...categoryBreakdown.map(c => `${CATEGORIES[c.category].label},${c.total.toFixed(2)},${c.count}x,Pessoal: ${c.personalTotal.toFixed(2)}`),
+    ].join('\n');
+
+    const personSection = personTotals.length > 0 ? [
+      '',
+      'POR PESSOA',
+      ...personTotals.map(p => `${p.person.name},${p.total.toFixed(2)}`),
+    ].join('\n') : '';
+
+    const bankSection = [
+      '',
+      'POR BANCO',
+      `Itau,${bankBreakdown.itau.total.toFixed(2)},${bankBreakdown.itau.count}x`,
+      `Bradesco,${bankBreakdown.bradesco.total.toFixed(2)},${bankBreakdown.bradesco.count}x`,
+    ].join('\n');
+
+    const csv = header + rows + '\n' + totalsSection + personSection + bankSection;
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fatura-analyzer-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredTransactions, totalGeral, totalPessoal, categoryBreakdown, personTotals, bankBreakdown]);
 
   const hasTransactions = transactions.length > 0;
 
@@ -217,17 +272,26 @@ export default function App() {
               Privacidade
             </button>
             {hasTransactions && (
-              <button
-                onClick={() => setShowSplitPanel(!showSplitPanel)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 cursor-pointer ${
-                  showSplitPanel
-                    ? 'bg-ink-900 text-sand-100 shadow-lg shadow-ink-900/20'
-                    : 'bg-sand-200 text-ink-700 hover:bg-sand-300'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                Dividir gastos
-              </button>
+              <>
+                <button
+                  onClick={exportCSV}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sand-200 text-ink-700 hover:bg-sand-300 text-[13px] font-medium transition-all duration-200 cursor-pointer active:scale-[0.97]"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar
+                </button>
+                <button
+                  onClick={() => setShowSplitPanel(!showSplitPanel)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 cursor-pointer ${
+                    showSplitPanel
+                      ? 'bg-ink-900 text-sand-100 shadow-lg shadow-ink-900/20'
+                      : 'bg-sand-200 text-ink-700 hover:bg-sand-300'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  Dividir gastos
+                </button>
+              </>
             )}
             <label className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ember-500 text-white text-[13px] font-medium hover:bg-ember-400 hover:shadow-xl hover:shadow-ember-500/30 transition-all duration-200 cursor-pointer active:scale-[0.97]  shadow-lg shadow-ember-500/20">
               <Upload className="w-4 h-4" />
@@ -347,8 +411,8 @@ export default function App() {
               ))}
             </div>
 
-            {/* Summary Cards — full width, 3 across */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Summary Cards — full width, 4 across */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               {[
                 {
                   label: 'Total da Fatura',
@@ -388,6 +452,41 @@ export default function App() {
                   </p>
                 </div>
               ))}
+
+              {/* Bank Breakdown Card */}
+              <div className="rounded-xl border border-sand-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-sand-300 hover:-translate-y-0.5 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                <p className="text-[11px] text-ink-400 uppercase tracking-wider font-medium mb-3">
+                  <Building2 className="w-3 h-3 inline mr-1" />
+                  Por Banco
+                </p>
+                <div className="flex gap-2">
+                  {([['all', 'Todos'] as const, ['itau', 'Itau'] as const, ['bradesco', 'Bradesco'] as const]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setFilterBank(key)}
+                      className={`flex-1 py-2 rounded-lg text-[12px] font-medium transition-all duration-200 cursor-pointer active:scale-[0.97] ${
+                        filterBank === key
+                          ? 'bg-ink-900 text-sand-100 shadow-sm'
+                          : 'bg-sand-100 text-ink-500 hover:bg-sand-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-3 text-[11px]">
+                  {bankBreakdown.itau.count > 0 && (
+                    <span className={`${filterBank === 'itau' ? 'text-ember-500 font-semibold' : 'text-ink-400'}`}>
+                      Itau: {formatBRL(bankBreakdown.itau.total)} ({bankBreakdown.itau.count}x)
+                    </span>
+                  )}
+                  {bankBreakdown.bradesco.count > 0 && (
+                    <span className={`${filterBank === 'bradesco' ? 'text-ruby-500 font-semibold' : 'text-ink-400'}`}>
+                      Bradesco: {formatBRL(bankBreakdown.bradesco.total)} ({bankBreakdown.bradesco.count}x)
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Split Panel — full width above the 2-col layout */}
@@ -565,6 +664,18 @@ export default function App() {
                       </span>
                     </h3>
                     <div className="flex items-center gap-2">
+                      {filterBank !== 'all' && (
+                        <button
+                          onClick={() => setFilterBank('all')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:opacity-80 transition-all duration-200 cursor-pointer animate-scale-in ${
+                            filterBank === 'itau' ? 'bg-ember-100 text-ember-500' : 'bg-ruby-100 text-ruby-500'
+                          }`}
+                        >
+                          <Building2 className="w-3 h-3" />
+                          {filterBank === 'itau' ? 'Itau' : 'Bradesco'}
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                       {filterCategory !== 'all' && (
                         <button
                           onClick={() => setFilterCategory('all')}
