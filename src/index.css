@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  --color-sand-50: #FEFDFB;
+  --color-sand-100: #FBF8F1;
+  --color-sand-200: #F5EDDC;
+  --color-sand-300: #E8DCC4;
+  --color-sand-400: #C9B896;
+  --color-sand-500: #A8956E;
+
+  --color-ink-900: #1A1612;
+  --color-ink-800: #2D2720;
+  --color-ink-700: #453D33;
+  --color-ink-600: #5E544A;
+  --color-ink-500: #7A7068;
+  --color-ink-400: #9C9389;
+  --color-ink-300: #B8B0A8;
+
+  --color-ember-500: #E8622C;
+  --color-ember-400: #F07A48;
+  --color-ember-300: #F5A47E;
+  --color-ember-200: #FCDAC8;
+  --color-ember-100: #FEF0E8;
+
+  --color-jade-500: #2D8E5E;
+  --color-jade-400: #3DAF75;
+  --color-jade-300: #7DD4A3;
+  --color-jade-200: #C4EDDA;
+  --color-jade-100: #EDFAF3;
+
+  --color-ruby-500: #C43D3D;
+  --color-ruby-400: #E05555;
+  --color-ruby-300: #F08A8A;
+  --color-ruby-200: #FCCECE;
+  --color-ruby-100: #FEF0F0;
+
+  --color-sky-500: #2B7BB5;
+  --color-sky-400: #4A9AD4;
+  --color-sky-300: #85BDE6;
+  --color-sky-200: #C4DEF2;
+  --color-sky-100: #EDF5FC;
+
+  --color-plum-500: #7E44A8;
+  --color-plum-400: #9D60C8;
+  --color-plum-300: #C49BE0;
+  --color-plum-200: #E4CFF2;
+  --color-plum-100: #F5EDFC;
+
+  --color-gold-500: #B8860B;
+  --color-gold-400: #D4A02A;
+  --color-gold-300: #E8C46E;
+  --color-gold-200: #F5E4B0;
+  --color-gold-100: #FCF5E0;
+
+  --animate-fade-in: fade-in 0.5s ease-out both;
+  --animate-fade-in-up: fade-in-up 0.5s ease-out both;
+  --animate-fade-in-down: fade-in-down 0.4s ease-out both;
+  --animate-scale-in: scale-in 0.3s ease-out both;
+  --animate-slide-in-right: slide-in-right 0.4s ease-out both;
+  --animate-slide-in-left: slide-in-left 0.4s ease-out both;
+  --animate-grow-width: grow-width 0.8s ease-out both;
+  --animate-bounce-in: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-shimmer: shimmer 2s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-count-up: fade-in-up 0.6s ease-out both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes grow-width {
+  from { width: 0%; }
+}
+
+@keyframes bounce-in {
+  from { opacity: 0; transform: scale(0.3); }
+  60% { transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes slide-up-stagger {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  background-color: var(--color-sand-50);
+  color: var(--color-ink-900);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-sand-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-sand-400);
+}
+
+/* Stagger animation utility */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+
+/* Bar grow animation */
+.bar-grow {
+  animation: grow-width 0.8s ease-out both;
+}
+
+/* Row entrance animation */
+.row-enter {
+  animation: slide-up-stagger 0.35s ease-out both;
+}
+
+/* Privacy banner pulse */
+.privacy-dot {
+  position: relative;
+}
+.privacy-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--color-jade-400);
+  animation: pulse-ring 2s ease-out infinite;
+}
