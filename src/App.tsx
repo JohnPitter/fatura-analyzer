@@ -8,6 +8,7 @@ import {
   ShieldCheck, Lock, Eye, EyeOff, Download, Building2, Search,
 } from 'lucide-react';
 import { parsePDF } from './parser';
+import { exportExcel, exportPDF } from './export';
 import type { Transaction, Category, Person } from './types';
 import { CATEGORIES } from './types';
 
@@ -42,6 +43,7 @@ export default function App() {
   const [filterBank, setFilterBank] = useState<'all' | 'itau' | 'bradesco'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [assignDropdownTx, setAssignDropdownTx] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -206,52 +208,25 @@ export default function App() {
     };
   }, [transactions]);
 
-  const exportCSV = useCallback(() => {
-    const myId = people[0]?.id;
-    const personNameMap = new Map(people.map(p => [p.id, p.name]));
-    const header = 'Data,Descricao,Categoria,Valor,Banco,Parcela,Atribuido A,Dividido Por,Valor Pessoal\n';
-    const rows = filteredTransactions.map(tx => {
-      const cat = CATEGORIES[tx.category].label;
-      const assignedName = tx.assignedTo ? (personNameMap.get(tx.assignedTo) ?? '-') : '-';
-      const personal = tx.assignedTo
-        ? (tx.assignedTo === myId ? tx.value : 0).toFixed(2)
-        : (tx.value / tx.splitPeople).toFixed(2);
-      const desc = tx.description.replace(/,/g, ' ');
-      return `${tx.date},"${desc}",${cat},${tx.value.toFixed(2)},${tx.source === 'itau' ? 'Itau' : 'Bradesco'},${tx.installment ?? '-'},${assignedName},${tx.splitPeople},${personal}`;
-    }).join('\n');
+  const getExportData = useCallback(() => ({
+    transactions: filteredTransactions,
+    people,
+    totalGeral,
+    totalPessoal,
+    categoryBreakdown,
+    bankBreakdown,
+    personTotals,
+  }), [filteredTransactions, people, totalGeral, totalPessoal, categoryBreakdown, bankBreakdown, personTotals]);
 
-    const totalsSection = [
-      '',
-      'RESUMO',
-      `Total Geral,${totalGeral.toFixed(2)}`,
-      `Total Pessoal,${totalPessoal.toFixed(2)}`,
-      '',
-      'POR CATEGORIA',
-      ...categoryBreakdown.map(c => `${CATEGORIES[c.category].label},${c.total.toFixed(2)},${c.count}x,Pessoal: ${c.personalTotal.toFixed(2)}`),
-    ].join('\n');
+  const handleExportExcel = useCallback(() => {
+    exportExcel(getExportData());
+    setShowExportMenu(false);
+  }, [getExportData]);
 
-    const personSection = personTotals.length > 0 ? [
-      '',
-      'POR PESSOA',
-      ...personTotals.map(p => `${p.person.name},${p.total.toFixed(2)}`),
-    ].join('\n') : '';
-
-    const bankSection = [
-      '',
-      'POR BANCO',
-      `Itau,${bankBreakdown.itau.total.toFixed(2)},${bankBreakdown.itau.count}x`,
-      `Bradesco,${bankBreakdown.bradesco.total.toFixed(2)},${bankBreakdown.bradesco.count}x`,
-    ].join('\n');
-
-    const csv = header + rows + '\n' + totalsSection + personSection + bankSection;
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fatura-analyzer-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [filteredTransactions, totalGeral, totalPessoal, categoryBreakdown, personTotals, bankBreakdown]);
+  const handleExportPDF = useCallback(() => {
+    exportPDF(getExportData());
+    setShowExportMenu(false);
+  }, [getExportData]);
 
   const hasTransactions = transactions.length > 0;
 
@@ -303,13 +278,36 @@ export default function App() {
             </button>
             {hasTransactions && (
               <>
-                <button
-                  onClick={exportCSV}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sand-200 text-ink-700 hover:bg-sand-300 text-[13px] font-medium transition-all duration-200 cursor-pointer active:scale-[0.97]"
-                >
-                  <Download className="w-4 h-4" />
-                  Exportar
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 cursor-pointer active:scale-[0.97] ${
+                      showExportMenu ? 'bg-ink-900 text-sand-100' : 'bg-sand-200 text-ink-700 hover:bg-sand-300'
+                    }`}
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showExportMenu && (
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl border-2 border-sand-200 shadow-2xl p-1.5 w-44 animate-scale-in">
+                      <button
+                        onClick={handleExportExcel}
+                        className="w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium text-ink-700 hover:bg-jade-100 hover:text-jade-600 transition-all duration-150 cursor-pointer flex items-center gap-2"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Excel (.xlsx)
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium text-ink-700 hover:bg-ruby-100 hover:text-ruby-600 transition-all duration-150 cursor-pointer flex items-center gap-2"
+                      >
+                        <FileText className="w-4 h-4" />
+                        PDF (.pdf)
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => setShowSplitPanel(!showSplitPanel)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 cursor-pointer ${
