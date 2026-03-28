@@ -406,16 +406,28 @@ describe('parseBradesco', () => {
     expect(txs[2].category).toBe('supermercado');
   });
 
-  it('skips encargos lines', () => {
-    const text = 'Encargos sobreparcelado 07/24 55,79\n';
+  it('captures encargos lines as financeiro', () => {
+    const text = 'Encargos sobre parcelado 07/24 55,79\n';
     const txs = parseBradesco(text);
-    expect(txs).toHaveLength(0);
+    expect(txs).toHaveLength(1);
+    expect(txs[0].category).toBe('financeiro');
+    expect(txs[0].value).toBeCloseTo(55.79);
   });
 
-  it('skips IOF lines', () => {
-    const text = 'IOF diário sobreparcelado 07/24 5,14\n';
+  it('captures IOF lines as financeiro', () => {
+    const text = 'IOF diário sobre parcelado 07/24 5,14\n';
     const txs = parseBradesco(text);
-    expect(txs).toHaveLength(0);
+    expect(txs).toHaveLength(1);
+    expect(txs[0].category).toBe('financeiro');
+    expect(txs[0].value).toBeCloseTo(5.14);
+  });
+
+  it('captures IOF adicional lines as financeiro', () => {
+    const text = 'IOF adicional sobre parcelado 02/05 1,92\n';
+    const txs = parseBradesco(text);
+    expect(txs).toHaveLength(1);
+    expect(txs[0].category).toBe('financeiro');
+    expect(txs[0].value).toBeCloseTo(1.92);
   });
 
   it('handles Farmacia Beira Mar categorization', () => {

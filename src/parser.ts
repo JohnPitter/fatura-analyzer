@@ -274,6 +274,27 @@ export function parseItau(text: string): Transaction[] {
     }
   }
 
+  // Capture "Repasse de IOF em R$ XX,XX" line (real charge, no leading date)
+  for (const rawLine of lines) {
+    const ln = rawLine.trim();
+    const repasseMatch = ln.match(/Repasse\s+de\s+IOF\s+em\s+R\$\s*([\d.,]+)/i);
+    if (repasseMatch) {
+      const value = parseValue(repasseMatch[1]);
+      if (value > 0) {
+        transactions.push({
+          id: nextId(),
+          date: '',
+          description: 'Repasse de IOF',
+          value,
+          category: 'financeiro',
+          source: 'itau',
+          splitPeople: 1,
+          isPersonal: true,
+        });
+      }
+    }
+  }
+
   return transactions;
 }
 
@@ -298,7 +319,7 @@ export function parseBradesco(text: string): Transaction[] {
         line.includes('Lançamentos') || line.includes('Cotação') || line.includes('Histórico') ||
         (line.includes('Data') && line.includes('Cidade')) || line.includes('do Dólar') ||
         line.includes('JOAO PEDRO') || line.includes('anterior') || line.includes('Demais') ||
-        line.includes('Cart') || line.includes('Compras R$') || line.includes('Saque R$') ||
+        /^Cart[ãa]o\s+\d{4}/i.test(line) || line.includes('Compras R$') || line.includes('Saque R$') ||
         line.includes('CET') || line.includes('Crediário') || line.includes('Rotativo') ||
         line.includes('legislação') || line.includes('vencimento') || line.includes('Novo teto') ||
         line.includes('Valor em R$') || line.includes('Valor original') || line.includes('encargos financeiros') ||
@@ -312,10 +333,6 @@ export function parseBradesco(text: string): Transaction[] {
         line.includes('Exterior') || line.includes('Consultas') ||
         line.match(/^\d{12,}/) || line.match(/^P.gina/) ||
         line.match(/^R\$/) || line.includes('pr.ximas faturas') ||
-        // Encargos and IOF lines (financial charges noise)
-        /Encargos sobre/i.test(line) ||
-        /IOF di[aá]rio/i.test(line) ||
-        /IOF adicional/i.test(line) ||
         // Rate table labels (right-side column data)
         /^Pagamento de Contas$/i.test(line) ||
         /^Parcelamento Fatura$/i.test(line) ||
@@ -376,6 +393,31 @@ export function parseBradesco(text: string): Transaction[] {
         splitPeople: 1,
         isPersonal: true,
       });
+    }
+  }
+
+  // Second pass: capture Encargos/IOF lines (they don't start with DD/MM but ARE real charges)
+  // pdfjs may extract as "Encargos sobre parcelado" or "Encargos sobreparcelado"
+  const financialRegex = /^(Encargos\s+sobre\s*\w*|IOF\s+di[aá]rio\s+sobre\s*\w*|IOF\s+adicional\s+sobre\s*\w*)\s+(\d{2}\/\d{2})\s+([\d.,]+)/i;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const match = trimmed.match(financialRegex);
+    if (match) {
+      const [, desc, installment, valueStr] = match;
+      const value = parseValue(valueStr);
+      if (value > 0) {
+        transactions.push({
+          id: nextId(),
+          date: installment,
+          description: desc.trim(),
+          value,
+          category: 'financeiro',
+          source: 'bradesco',
+          installment,
+          splitPeople: 1,
+          isPersonal: true,
+        });
+      }
     }
   }
 
