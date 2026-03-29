@@ -49,44 +49,55 @@ Fatura Analyzer e uma aplicacao web que analisa faturas de cartao de credito em 
 
 ## Como Funciona
 
-```
-                    ┌──────────────────────────┐
-                    │     Upload PDF (drag/     │
-                    │     drop ou selecionar)   │
-                    └────────────┬─────────────┘
-                                 │
-                    ┌────────────▼─────────────┐
-                    │   pdf.js extrai texto e   │
-                    │   posicoes de cada item   │
-                    └────────────┬─────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              │                  │                   │
-    ┌─────────▼──────┐  ┌───────▼────────┐  ┌──────▼──────────┐
-    │ Detecta banco  │  │ Agrupa texto   │  │ Filtra ruido:   │
-    │ (Itau/Bradesco)│  │ por coordenada │  │ limites, taxas, │
-    │                │  │ Y → linhas     │  │ encargos, IOF   │
-    └─────────┬──────┘  └───────┬────────┘  └──────┬──────────┘
-              │                 │                   │
-              └─────────────────┼───────────────────┘
-                                │
-                    ┌───────────▼───────────┐
-                    │  Parser especifico:   │
-                    │  parseItau() ou       │
-                    │  parseBradesco()      │
-                    └───────────┬───────────┘
-                                │
-                    ┌───────────▼───────────┐
-                    │  Categoriza cada      │
-                    │  transacao (keyword   │
-                    │  matching + Itau      │
-                    │  explicit categories) │
-                    └───────────┬───────────┘
-                                │
-                    ┌───────────▼───────────┐
-                    │  Renderiza dashboard  │
-                    │  com React            │
-                    └───────────────────────┘
+```mermaid
+graph TD
+    UPLOAD["📄 Upload PDF<br/><i>drag & drop ou selecionar</i>"]
+    PDFJS["🔍 pdf.js extrai texto<br/>e posicoes de cada item"]
+    DETECT{"Detecta banco"}
+    ITAU["🟠 parseItau()"]
+    BRADESCO["🔴 parseBradesco()"]
+    GROUP["Agrupa texto por<br/>coordenada Y → linhas"]
+    FILTER["Filtra ruido: limites,<br/>taxas, parcelas futuras"]
+    MULTI["Extrai multiplas transacoes<br/>por linha (2 colunas do PDF)"]
+    CAT["🏷️ Categoriza por keyword<br/><i>16 categorias automaticas</i>"]
+    INSTALLMENT["📋 Detecta parcelas<br/><i>DD/DD em qualquer posicao</i>"]
+    VALIDATE["✅ Valida fatura<br/><i>rejeita PDFs invalidos</i>"]
+    DASH["📊 Dashboard React"]
+    SPLIT["👥 Dividir gastos<br/><i>por pessoa ou ÷N</i>"]
+    EXPORT["📁 Exportar<br/><i>Excel / PDF</i>"]
+    SAVE["🔒 Salvar historico<br/><i>AES-256-GCM criptografado</i>"]
+
+    UPLOAD --> VALIDATE
+    VALIDATE --> PDFJS
+    PDFJS --> GROUP
+    GROUP --> DETECT
+    DETECT -->|"Itau<br/>(4004 4828)"| ITAU
+    DETECT -->|"Bradesco<br/>(Fatura Mensal)"| BRADESCO
+    ITAU --> FILTER
+    BRADESCO --> FILTER
+    FILTER --> MULTI
+    MULTI --> CAT
+    CAT --> INSTALLMENT
+    INSTALLMENT --> DASH
+    DASH --> SPLIT
+    DASH --> EXPORT
+    DASH --> SAVE
+
+    style UPLOAD fill:#E8622C,color:#fff,stroke:none,rx:12
+    style VALIDATE fill:#2D8E5E,color:#fff,stroke:none,rx:12
+    style PDFJS fill:#2B7BB5,color:#fff,stroke:none,rx:12
+    style DETECT fill:#B8860B,color:#fff,stroke:none
+    style ITAU fill:#F07A48,color:#fff,stroke:none,rx:12
+    style BRADESCO fill:#C43D3D,color:#fff,stroke:none,rx:12
+    style GROUP fill:#7E44A8,color:#fff,stroke:none,rx:12
+    style FILTER fill:#7E44A8,color:#fff,stroke:none,rx:12
+    style MULTI fill:#7E44A8,color:#fff,stroke:none,rx:12
+    style CAT fill:#2B7BB5,color:#fff,stroke:none,rx:12
+    style INSTALLMENT fill:#2B7BB5,color:#fff,stroke:none,rx:12
+    style DASH fill:#1A1612,color:#fff,stroke:none,rx:12
+    style SPLIT fill:#7E44A8,color:#fff,stroke:none,rx:12
+    style EXPORT fill:#2B7BB5,color:#fff,stroke:none,rx:12
+    style SAVE fill:#2D8E5E,color:#fff,stroke:none,rx:12
 ```
 
 ### Parsing Inteligente
