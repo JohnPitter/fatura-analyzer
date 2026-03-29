@@ -526,27 +526,137 @@ const SceneCTA: React.FC = () => {
   );
 };
 
-// ─── Main composition ───────────────────────────────────────────────────────
+// ─── Scene 5: Split Between People (15-18.5s, 105 frames) ──────────────────
+
+const SceneSplit: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const headOp = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
+  const headY = interpolate(frame, [0, 12], [20, 0], { extrapolateRight: 'clamp' });
+
+  // Person cards
+  const people = [
+    { name: 'Eu', total: 'R$ 7.234,18', color: EMBER_500, bg: EMBER_100 },
+    { name: 'Nicolly', total: 'R$ 2.105,40', color: PLUM_500, bg: PLUM_100 },
+    { name: 'Amigo', total: 'R$ 1.230,38', color: SKY_500, bg: SKY_100 },
+  ];
+
+  // Transaction split examples
+  const splits = [
+    { desc: 'ATACAREJO PAULISTA', value: 'R$ 326,05', split: '÷2', each: 'R$ 163,02', badge: 'Bradesco' },
+    { desc: 'CLAUDE.AI SUBSCRIPTION', value: 'R$ 591,01', assigned: 'Eu', badge: 'Itau' },
+    { desc: 'FARMACIA BEIRA MAR', value: 'R$ 124,98', assigned: 'Nicolly', badge: 'Bradesco' },
+    { desc: 'BROTFABRIK RECIFE', value: 'R$ 51,00', split: '÷3', each: 'R$ 17,00', badge: 'Bradesco' },
+  ];
+
+  return (
+    <AbsoluteFill style={{ background: BG, fontFamily: font, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100%', padding: '0 80px' }}>
+        {/* Title */}
+        <div style={{ opacity: headOp, transform: `translateY(${headY}px)`, textAlign: 'center', marginBottom: 40 }}>
+          <p style={{ fontSize: 14, color: PLUM_500, textTransform: 'uppercase', letterSpacing: 4, fontWeight: 600, margin: '0 0 8px' }}>Dividir gastos</p>
+          <h2 style={{ fontSize: 40, fontWeight: 700, color: INK_900, margin: 0, letterSpacing: -1 }}>Cada gasto com seu dono</h2>
+        </div>
+
+        <div style={{ display: 'flex', gap: 40 }}>
+          {/* Left: Person totals */}
+          <div style={{ width: 340 }}>
+            <p style={{ fontSize: 12, color: INK_400, textTransform: 'uppercase', letterSpacing: 2, fontWeight: 600, marginBottom: 16 }}>Total por pessoa</p>
+            {people.map((p, i) => {
+              const delay = 15 + i * 10;
+              const s = spring({ frame: Math.max(0, frame - delay), fps, config: { damping: 14 } });
+              return (
+                <div key={i} style={{
+                  transform: `scale(${s})`,
+                  background: 'white', borderRadius: 16, padding: '20px 24px',
+                  border: `1px solid ${SAND_200}`, marginBottom: 12,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: p.color }}>
+                      {p.name[0]}
+                    </div>
+                    <span style={{ fontSize: 18, fontWeight: 600, color: INK_900 }}>{p.name}</span>
+                  </div>
+                  <span style={{ fontSize: 22, fontWeight: 700, fontFamily: mono, color: p.color }}>{p.total}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right: Split examples */}
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 12, color: INK_400, textTransform: 'uppercase', letterSpacing: 2, fontWeight: 600, marginBottom: 16 }}>Transacoes divididas</p>
+            <div style={{ background: 'white', borderRadius: 16, border: `1px solid ${SAND_200}`, overflow: 'hidden' }}>
+              {splits.map((s, i) => {
+                const delay = 25 + i * 8;
+                const op = interpolate(frame, [delay, delay + 6], [0, 1], { extrapolateRight: 'clamp' });
+                const y = interpolate(frame, [delay, delay + 8], [10, 0], { extrapolateRight: 'clamp' });
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', padding: '14px 20px',
+                    borderBottom: i < splits.length - 1 ? `1px solid ${SAND_100}` : 'none',
+                    opacity: op, transform: `translateY(${y}px)`,
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: INK_900 }}>{s.desc}</span>
+                        <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: s.badge === 'Itau' ? EMBER_100 : RUBY_100, color: s.badge === 'Itau' ? EMBER_500 : RUBY_500, fontWeight: 600 }}>{s.badge}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, fontFamily: mono, color: INK_900, marginRight: 16 }}>{s.value}</span>
+                    {s.assigned ? (
+                      <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 8, background: PLUM_100, color: PLUM_500, fontWeight: 600 }}>
+                        {s.assigned}
+                      </span>
+                    ) : (
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: 12, color: JADE_500, fontFamily: mono, fontWeight: 600 }}>{s.split} = {s.each}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ─── Main composition (21s = 630 frames @ 30fps) ────────────────────────────
+//
+// Scene 1: Hero Reveal        0-3.5s    (0-105)
+// Scene 2: Upload Flow        3.5-7s    (105-210)
+// Scene 3: Real Dashboard     7-11s     (210-330)
+// Scene 4: Split People       11-14.5s  (330-435)
+// Scene 5: Features Grid      14.5-18s  (435-540)
+// Scene 6: Privacy + CTA      18-21s    (540-630)
 
 export const PromoVideo: React.FC = () => {
   return (
     <AbsoluteFill>
-      {/* Background music */}
       <Audio src={staticFile('bgm.mp3')} volume={0.7} />
 
-      <Sequence from={0} durationInFrames={90}>
+      <Sequence from={0} durationInFrames={105}>
         <SceneHero />
       </Sequence>
-      <Sequence from={90} durationInFrames={105}>
+      <Sequence from={105} durationInFrames={105}>
         <SceneUpload />
       </Sequence>
-      <Sequence from={195} durationInFrames={105}>
+      <Sequence from={210} durationInFrames={120}>
         <SceneDashboard />
       </Sequence>
-      <Sequence from={300} durationInFrames={90}>
+      <Sequence from={330} durationInFrames={105}>
+        <SceneSplit />
+      </Sequence>
+      <Sequence from={435} durationInFrames={105}>
         <SceneFeatures />
       </Sequence>
-      <Sequence from={390} durationInFrames={60}>
+      <Sequence from={540} durationInFrames={90}>
         <SceneCTA />
       </Sequence>
     </AbsoluteFill>
