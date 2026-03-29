@@ -171,12 +171,12 @@ const SceneUpload: React.FC = () => {
 
   // Category cards stagger
   const categories = [
-    { name: 'Supermercado', emoji: '🛒', value: 'R$ 775', color: JADE_500, bg: JADE_100 },
-    { name: 'Tecnologia', emoji: '💻', value: 'R$ 591', color: SKY_500, bg: SKY_100 },
-    { name: 'Restaurante', emoji: '🍽', value: 'R$ 311', color: EMBER_500, bg: EMBER_100 },
-    { name: 'Educacao', emoji: '🎓', value: 'R$ 218', color: PLUM_500, bg: PLUM_100 },
-    { name: 'Farmacia', emoji: '💊', value: 'R$ 224', color: JADE_500, bg: JADE_100 },
-    { name: 'Vestuario', emoji: '👕', value: 'R$ 147', color: PLUM_500, bg: PLUM_100 },
+    { name: 'Supermercado', emoji: '🛒', value: 'R$ 1.245', color: JADE_500, bg: JADE_100 },
+    { name: 'Restaurante', emoji: '🍽', value: 'R$ 892', color: EMBER_500, bg: EMBER_100 },
+    { name: 'Transporte', emoji: '🚗', value: 'R$ 634', color: SKY_500, bg: SKY_100 },
+    { name: 'Farmacia', emoji: '💊', value: 'R$ 487', color: JADE_500, bg: JADE_100 },
+    { name: 'Assinaturas', emoji: '🔄', value: 'R$ 389', color: PLUM_500, bg: PLUM_100 },
+    { name: 'Vestuario', emoji: '👕', value: 'R$ 199', color: PLUM_500, bg: PLUM_100 },
   ];
 
   // Heading
@@ -257,19 +257,19 @@ const SceneDashboard: React.FC = () => {
   const { fps } = useVideoConfig();
 
   const categories = [
-    { name: 'Financeiro', value: 'R$ 1.432,08', pct: 100, color: RUBY_500, bg: RUBY_100, count: '24x' },
-    { name: 'Supermercado', value: 'R$ 775,29', pct: 54, color: JADE_500, bg: JADE_100, count: '6x' },
-    { name: 'Tecnologia', value: 'R$ 591,01', pct: 41, color: SKY_500, bg: SKY_100, count: '8x' },
-    { name: 'Educacao', value: 'R$ 504,44', pct: 35, color: PLUM_500, bg: PLUM_100, count: '9x' },
-    { name: 'Assinaturas', value: 'R$ 482,90', pct: 33, color: PLUM_500, bg: PLUM_100, count: '7x' },
+    { name: 'Supermercado', value: 'R$ 1.245,30', pct: 100, color: JADE_500, bg: JADE_100, count: '12x' },
+    { name: 'Restaurante', value: 'R$ 892,50', pct: 71, color: EMBER_500, bg: EMBER_100, count: '8x' },
+    { name: 'Transporte', value: 'R$ 634,20', pct: 50, color: INK_400, bg: SAND_200, count: '6x' },
+    { name: 'Farmacia', value: 'R$ 487,60', pct: 39, color: JADE_500, bg: JADE_100, count: '5x' },
+    { name: 'Assinaturas', value: 'R$ 389,90', pct: 31, color: PLUM_500, bg: PLUM_100, count: '4x' },
   ];
 
   const txRows = [
-    { date: '01/03', desc: 'ATACAREJO PAULISTA', cat: 'Supermercado', value: 'R$ 326,05', bank: 'Bradesco', parcela: '' },
-    { date: '13/03', desc: 'CLAUDE.AI SUBSCRIPTION', cat: 'Tecnologia', value: 'R$ 591,01', bank: 'Itau', parcela: '' },
-    { date: '12/11', desc: 'PICPAY*Joao Pedro', cat: 'Financeiro', value: 'R$ 1.544,55', bank: 'Bradesco', parcela: '05/12' },
-    { date: '03/03', desc: 'FELIX E CAVALCANTI', cat: 'Supermercado', value: 'R$ 204,62', bank: 'Bradesco', parcela: '' },
-    { date: '07/03', desc: 'VERDAO', cat: 'Supermercado', value: 'R$ 138,28', bank: 'Bradesco', parcela: '' },
+    { date: '05/03', desc: 'SUPERMERCADO CENTRAL', cat: 'Supermercado', value: 'R$ 289,45', bank: 'Bradesco', parcela: '' },
+    { date: '10/03', desc: 'STREAMING DIGITAL', cat: 'Tecnologia', value: 'R$ 44,90', bank: 'Itau', parcela: '' },
+    { date: '12/03', desc: 'FARMACIA POPULAR', cat: 'Farmacia', value: 'R$ 87,30', bank: 'Bradesco', parcela: '03/06' },
+    { date: '15/03', desc: 'RESTAURANTE SABOR', cat: 'Restaurante', value: 'R$ 152,80', bank: 'Itau', parcela: '' },
+    { date: '18/03', desc: 'LOJA DE ROUPAS', cat: 'Vestuario', value: 'R$ 199,90', bank: 'Bradesco', parcela: '02/04' },
   ];
 
   // Panel slide-in
@@ -299,8 +299,8 @@ const SceneDashboard: React.FC = () => {
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 16, padding: '20px 32px' }}>
         {[
-          { label: 'TOTAL DA FATURA', value: 'R$ 10.569,96', color: INK_900 },
-          { label: 'MEU TOTAL (PESSOAL)', value: 'R$ 7.234,18', color: EMBER_500 },
+          { label: 'TOTAL DA FATURA', value: 'R$ 4.832,50', color: INK_900 },
+          { label: 'MEU TOTAL (PESSOAL)', value: 'R$ 3.215,70', color: EMBER_500 },
           { label: 'CATEGORIAS', value: '16', color: INK_900 },
           { label: 'POR BANCO', extra: true },
         ].map((c, i) => {
@@ -537,17 +537,17 @@ const SceneSplit: React.FC = () => {
 
   // Person cards
   const people = [
-    { name: 'Eu', total: 'R$ 7.234,18', color: EMBER_500, bg: EMBER_100 },
-    { name: 'Nicolly', total: 'R$ 2.105,40', color: PLUM_500, bg: PLUM_100 },
+    { name: 'Voce', total: 'R$ 3.215,70', color: EMBER_500, bg: EMBER_100 },
+    { name: 'Parceiro(a)', total: 'R$ 1.120,30', color: PLUM_500, bg: PLUM_100 },
     { name: 'Amigo', total: 'R$ 1.230,38', color: SKY_500, bg: SKY_100 },
   ];
 
   // Transaction split examples
   const splits = [
-    { desc: 'ATACAREJO PAULISTA', value: 'R$ 326,05', split: '÷2', each: 'R$ 163,02', badge: 'Bradesco' },
-    { desc: 'CLAUDE.AI SUBSCRIPTION', value: 'R$ 591,01', assigned: 'Eu', badge: 'Itau' },
-    { desc: 'FARMACIA BEIRA MAR', value: 'R$ 124,98', assigned: 'Nicolly', badge: 'Bradesco' },
-    { desc: 'BROTFABRIK RECIFE', value: 'R$ 51,00', split: '÷3', each: 'R$ 17,00', badge: 'Bradesco' },
+    { desc: 'SUPERMERCADO CENTRAL', value: 'R$ 289,45', split: '÷2', each: 'R$ 144,72', badge: 'Bradesco' },
+    { desc: 'STREAMING DIGITAL', value: 'R$ 44,90', assigned: 'Voce', badge: 'Itau' },
+    { desc: 'FARMACIA POPULAR', value: 'R$ 87,30', assigned: 'Parceiro(a)', badge: 'Bradesco' },
+    { desc: 'RESTAURANTE SABOR', value: 'R$ 152,80', split: '÷3', each: 'R$ 50,93', badge: 'Itau' },
   ];
 
   return (
