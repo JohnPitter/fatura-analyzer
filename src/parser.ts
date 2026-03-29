@@ -218,13 +218,20 @@ export function parseItau(text: string): Transaction[] {
         }
       }
 
-      // Extract installment info
+      // Extract installment info — find DD/DD that looks like num/total
       let description = rawDesc.trim();
-      const installmentMatch = description.match(/\s(\d{2}\/\d{2})\s*$/);
       let installment: string | undefined;
-      if (installmentMatch) {
-        installment = installmentMatch[1];
-        description = description.replace(/\s\d{2}\/\d{2}\s*$/, '').trim();
+      const itauInstallments = [...description.matchAll(/(\d{2})\/(\d{2})/g)];
+      for (const m of itauInstallments) {
+        const num = parseInt(m[1], 10);
+        const total = parseInt(m[2], 10);
+        if (num > 0 && total > 1 && num <= total && total <= 48) {
+          installment = `${m[1]}/${m[2]}`;
+          break;
+        }
+      }
+      if (installment) {
+        description = description.replace(new RegExp(`\\s*${installment.replace('/', '\\/')}\\s*`), ' ').trim();
       }
 
       // Deduplicate: same date + description + value
@@ -318,27 +325,18 @@ export function parseBradesco(text: string): Transaction[] {
       const valueIndex = rest.indexOf(valueMatch[0]);
       let rawDesc = rest.substring(0, valueIndex).trim();
 
-      // Extract installment info — can be at end of desc, with or without space:
-      // "PIX PARC CARTAO CRED02/05", "CURRYS OXFORD STREET07/24", "DL *Starlink Brazil 09/12"
+      // Extract installment info — can appear anywhere in the description:
+      // "PIX PARC CARTAO CRED02/05", "AMAZON BR 07/10 SAO PAULO",
+      // "PICPAY*Joao Pedro Ta05/12 S o Paulo", "BRASIL PARAL*BrasilP06/12 SAO PAULO"
+      // Find ALL DD/DD patterns and pick the one that looks like a valid installment (num/total)
       let installment: string | undefined;
-      // Try: installment at very end (possibly concatenated with text)
-      const installmentMatch = rawDesc.match(/(\d{2}\/\d{2})\s*$/);
-      if (installmentMatch) {
-        const potentialInstallment = installmentMatch[1];
-        const [num, total] = potentialInstallment.split('/').map(Number);
+      const allInstallments = [...rawDesc.matchAll(/(\d{2})\/(\d{2})/g)];
+      for (const m of allInstallments) {
+        const num = parseInt(m[1], 10);
+        const total = parseInt(m[2], 10);
         if (num > 0 && total > 1 && num <= total && total <= 48) {
-          installment = potentialInstallment;
-        }
-      }
-      // Also try: installment followed by city at end
-      if (!installment) {
-        const installmentCityMatch = rawDesc.match(/(\d{2}\/\d{2})\s+\S+\s*$/);
-        if (installmentCityMatch) {
-          const potentialInstallment = installmentCityMatch[1];
-          const [num, total] = potentialInstallment.split('/').map(Number);
-          if (num > 0 && total > 1 && num <= total && total <= 48) {
-            installment = potentialInstallment;
-          }
+          installment = `${m[1]}/${m[2]}`;
+          break;
         }
       }
 
