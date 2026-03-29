@@ -998,6 +998,14 @@ export default function App() {
                                     {tx.source === 'itau' ? 'Itau' : 'Bradesco'}
                                   </span>
                                 </div>
+                                {/* Note / observation field */}
+                                <input
+                                  type="text"
+                                  value={tx.note ?? ''}
+                                  onChange={e => updateTransaction(tx.id, { note: e.target.value || undefined })}
+                                  placeholder="obs..."
+                                  className="mt-1 w-full max-w-[220px] px-1.5 py-0.5 rounded border border-transparent text-[11px] text-ink-400 placeholder:text-ink-300/60 outline-none hover:border-sand-200 focus:border-ember-300 focus:ring-1 focus:ring-ember-200 focus:text-ink-700 bg-transparent focus:bg-white transition-all"
+                                />
                               </td>
                               <td className="px-4 py-3 relative">
                                 <button

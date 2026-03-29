@@ -28,6 +28,8 @@ export interface Transaction {
   isPersonal: boolean;
   /** When set, the full value is assigned to this person only (not split). */
   assignedTo?: string;
+  /** Free-text user note for the transaction (e.g., "cafe", "presente mae"). */
+  note?: string;
 }
 
 export interface CategoryInfo {

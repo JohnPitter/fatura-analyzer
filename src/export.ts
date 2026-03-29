@@ -42,7 +42,7 @@ export function exportExcel(data: ExportData): void {
   const hasPeople = data.people.length > 1;
 
   // Sheet 1: Transacoes
-  const txHeaders = ['Data', 'Descricao', 'Categoria', 'Banco', 'Parcela', 'Valor'];
+  const txHeaders = ['Data', 'Descricao', 'Categoria', 'Banco', 'Parcela', 'Valor', 'Observacao'];
   if (hasPeople) {
     txHeaders.push('Atribuido A', 'Dividido Por');
     for (const p of data.people) {
@@ -58,6 +58,7 @@ export function exportExcel(data: ExportData): void {
       tx.source === 'itau' ? 'Itau' : 'Bradesco',
       tx.installment ?? '-',
       tx.value,
+      tx.note ?? '',
     ];
     if (hasPeople) {
       const assignedName = tx.assignedTo ? (data.people.find(p => p.id === tx.assignedTo)?.name ?? '-') : '-';
@@ -74,7 +75,7 @@ export function exportExcel(data: ExportData): void {
 
   // Set column widths
   ws1['!cols'] = [
-    { wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 10 }, { wch: 8 }, { wch: 12 },
+    { wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 20 },
     ...(hasPeople ? [{ wch: 14 }, { wch: 10 }, ...data.people.map(() => ({ wch: 14 }))] : []),
   ];
   XLSX.utils.book_append_sheet(wb, ws1, 'Transacoes');
@@ -128,20 +129,22 @@ export function exportExcel(data: ExportData): void {
           tx.description,
           CATEGORIES[tx.category].label,
           tx.source === 'itau' ? 'Itau' : 'Bradesco',
+          tx.installment ?? '-',
           tx.value,
           Math.round(cols[person.name] * 100) / 100,
+          tx.note ?? '',
         ];
       });
 
-      const personTotal = personRows.reduce((s, r) => s + (r[5] as number), 0);
+      const personTotal = personRows.reduce((s, r) => s + (r[6] as number), 0);
       const wsP = XLSX.utils.aoa_to_sheet([
         [`Transacoes de ${person.name}`],
         [`Total: ${formatBRL(personTotal)}`],
         [],
-        ['Data', 'Descricao', 'Categoria', 'Banco', 'Valor Total', `Valor ${person.name}`],
+        ['Data', 'Descricao', 'Categoria', 'Banco', 'Parcela', 'Valor Total', `Valor ${person.name}`, 'Observacao'],
         ...personRows,
       ]);
-      wsP['!cols'] = [{ wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
+      wsP['!cols'] = [{ wch: 8 }, { wch: 35 }, { wch: 15 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 20 }];
 
       const sheetName = person.name.substring(0, 31);
       XLSX.utils.book_append_sheet(wb, wsP, sheetName);
@@ -199,7 +202,7 @@ export function exportPDF(data: ExportData): void {
   // Transactions table
   const tableStartY = hasPeople ? summaryY + 18 : summaryY + 12;
 
-  const txHead = ['Data', 'Descricao', 'Categoria', 'Banco', 'Valor'];
+  const txHead = ['Data', 'Descricao', 'Categoria', 'Banco', 'Parcela', 'Valor', 'Obs.'];
   if (hasPeople) {
     txHead.push('Atrib.');
     for (const p of data.people) {
@@ -210,10 +213,12 @@ export function exportPDF(data: ExportData): void {
   const txBody = data.transactions.map(tx => {
     const row: string[] = [
       tx.date,
-      tx.description.substring(0, 30),
+      tx.description.substring(0, 28),
       CATEGORIES[tx.category].label,
       tx.source === 'itau' ? 'Itau' : 'Bradesco',
+      tx.installment ?? '-',
       formatBRL(tx.value),
+      tx.note ?? '',
     ];
     if (hasPeople) {
       const assignedName = tx.assignedTo ? (data.people.find(p => p.id === tx.assignedTo)?.name ?? '-') : tx.splitPeople > 1 ? `÷${tx.splitPeople}` : '-';
@@ -284,10 +289,12 @@ export function exportPDF(data: ExportData): void {
         const cols = buildPersonColumns(tx, data.people);
         return [
           tx.date,
-          tx.description.substring(0, 35),
+          tx.description.substring(0, 30),
           CATEGORIES[tx.category].label,
+          tx.installment ?? '-',
           formatBRL(tx.value),
           formatBRL(cols[person.name]),
+          tx.note ?? '',
         ];
       });
 
@@ -301,7 +308,7 @@ export function exportPDF(data: ExportData): void {
       doc.text(`Total: ${formatBRL(personTotal)}`, 14, 24);
 
       autoTable(doc, {
-        head: [['Data', 'Descricao', 'Categoria', 'Valor Total', `Valor ${person.name}`]],
+        head: [['Data', 'Descricao', 'Categoria', 'Parcela', 'Valor Total', `Valor ${person.name}`, 'Obs.']],
         body: personBody,
         startY: 30,
         styles: { fontSize: 8, cellPadding: 1.5 },

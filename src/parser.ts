@@ -318,14 +318,27 @@ export function parseBradesco(text: string): Transaction[] {
       const valueIndex = rest.indexOf(valueMatch[0]);
       let rawDesc = rest.substring(0, valueIndex).trim();
 
-      // Extract installment info (XX/YY pattern in description)
+      // Extract installment info — can be at end of desc, with or without space:
+      // "PIX PARC CARTAO CRED02/05", "CURRYS OXFORD STREET07/24", "DL *Starlink Brazil 09/12"
       let installment: string | undefined;
-      const installmentMatch = rawDesc.match(/(\d{2}\/\d{2})\s+\S+\s*$/);
+      // Try: installment at very end (possibly concatenated with text)
+      const installmentMatch = rawDesc.match(/(\d{2}\/\d{2})\s*$/);
       if (installmentMatch) {
         const potentialInstallment = installmentMatch[1];
         const [num, total] = potentialInstallment.split('/').map(Number);
         if (num > 0 && total > 1 && num <= total && total <= 48) {
           installment = potentialInstallment;
+        }
+      }
+      // Also try: installment followed by city at end
+      if (!installment) {
+        const installmentCityMatch = rawDesc.match(/(\d{2}\/\d{2})\s+\S+\s*$/);
+        if (installmentCityMatch) {
+          const potentialInstallment = installmentCityMatch[1];
+          const [num, total] = potentialInstallment.split('/').map(Number);
+          if (num > 0 && total > 1 && num <= total && total <= 48) {
+            installment = potentialInstallment;
+          }
         }
       }
 
@@ -334,7 +347,7 @@ export function parseBradesco(text: string): Transaction[] {
       const cityPattern = /\s+(SAO PAULO|RECIFE|PAULISTA|OLINDA|BARUERI|OSASCO|IGARASSU|SANTO ANDRE|NAVEGANTES|SOROCABA|CAMARAGIBE|CURITIBA|Sao Paulo|Paulista|Olinda|Recife|S o Paulo|SANTANA DE|Brasilia|PA)\s*$/i;
       description = description.replace(cityPattern, '').trim();
 
-      // Remove installment from description
+      // Remove installment from description (handles both "CRED02/05" and "Brazil 09/12")
       if (installment) {
         description = description.replace(new RegExp(`\\s*${installment.replace('/', '\\/')}\\s*`), ' ').trim();
       }
