@@ -3,10 +3,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Transaction, Person, Category } from './types';
 import { CATEGORIES } from './types';
-
-function formatBRL(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { formatBRL, getPersonValue, getPersonTransactions } from './utils';
 
 interface ExportData {
   transactions: Transaction[];
@@ -20,19 +17,8 @@ interface ExportData {
 
 function buildPersonColumns(tx: Transaction, people: Person[]): Record<string, number> {
   const result: Record<string, number> = {};
-  if (tx.assignedTo) {
-    for (const p of people) {
-      result[p.name] = p.id === tx.assignedTo ? tx.value : 0;
-    }
-  } else if (tx.splitPeople > 1) {
-    const perPerson = tx.value / tx.splitPeople;
-    for (let i = 0; i < people.length; i++) {
-      result[people[i].name] = i < tx.splitPeople ? perPerson : 0;
-    }
-  } else {
-    for (let i = 0; i < people.length; i++) {
-      result[people[i].name] = i === 0 ? tx.value : 0;
-    }
+  for (const p of people) {
+    result[p.name] = getPersonValue(tx, p, people);
   }
   return result;
 }
@@ -113,30 +99,20 @@ export function exportExcel(data: ExportData): void {
   // Sheet 3: Por Pessoa (if people exist)
   if (hasPeople) {
     for (const person of data.people) {
-      const personTxs = data.transactions.filter(tx => {
-        if (tx.assignedTo) return tx.assignedTo === person.id;
-        if (tx.splitPeople > 1) {
-          const idx = data.people.indexOf(person);
-          return idx < tx.splitPeople;
-        }
-        return data.people.indexOf(person) === 0;
-      });
+      const personTxs = getPersonTransactions(data.transactions, person, data.people);
 
-      const personRows = personTxs.map(tx => {
-        const cols = buildPersonColumns(tx, data.people);
-        return [
-          tx.date,
-          tx.description,
-          CATEGORIES[tx.category].label,
-          tx.source === 'itau' ? 'Itau' : 'Bradesco',
-          tx.installment ?? '-',
-          tx.value,
-          Math.round(cols[person.name] * 100) / 100,
-          tx.note ?? '',
-        ];
-      });
+      const personRows = personTxs.map(tx => [
+        tx.date,
+        tx.description,
+        CATEGORIES[tx.category].label,
+        tx.source === 'itau' ? 'Itau' : 'Bradesco',
+        tx.installment ?? '-',
+        tx.value,
+        Math.round(getPersonValue(tx, person, data.people) * 100) / 100,
+        tx.note ?? '',
+      ]);
 
-      const personTotal = personRows.reduce((s, r) => s + (r[6] as number), 0);
+      const personTotal = personTxs.reduce((s, tx) => s + getPersonValue(tx, person, data.people), 0);
       const wsP = XLSX.utils.aoa_to_sheet([
         [`Transacoes de ${person.name}`],
         [`Total: ${formatBRL(personTotal)}`],
@@ -276,32 +252,19 @@ export function exportPDF(data: ExportData): void {
       doc.setFont('helvetica', 'bold');
       doc.text(`Transacoes - ${person.name}`, 14, 18);
 
-      const personTxs = data.transactions.filter(tx => {
-        if (tx.assignedTo) return tx.assignedTo === person.id;
-        if (tx.splitPeople > 1) {
-          const idx = data.people.indexOf(person);
-          return idx < tx.splitPeople;
-        }
-        return data.people.indexOf(person) === 0;
-      });
+      const personTxs = getPersonTransactions(data.transactions, person, data.people);
 
-      const personBody = personTxs.map(tx => {
-        const cols = buildPersonColumns(tx, data.people);
-        return [
-          tx.date,
-          tx.description.substring(0, 30),
-          CATEGORIES[tx.category].label,
-          tx.installment ?? '-',
-          formatBRL(tx.value),
-          formatBRL(cols[person.name]),
-          tx.note ?? '',
-        ];
-      });
+      const personBody = personTxs.map(tx => [
+        tx.date,
+        tx.description.substring(0, 30),
+        CATEGORIES[tx.category].label,
+        tx.installment ?? '-',
+        formatBRL(tx.value),
+        formatBRL(getPersonValue(tx, person, data.people)),
+        tx.note ?? '',
+      ]);
 
-      const personTotal = personTxs.reduce((s, tx) => {
-        const cols = buildPersonColumns(tx, data.people);
-        return s + cols[person.name];
-      }, 0);
+      const personTotal = personTxs.reduce((s, tx) => s + getPersonValue(tx, person, data.people), 0);
 
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');

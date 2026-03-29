@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import type { Transaction, Category } from './types';
+import { extractInstallment } from './utils';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -143,6 +144,7 @@ export function parseItau(text: string): Transaction[] {
   // Strategy: find ALL "DD/MM description value" segments within each line.
 
   const brValue = /(\d{1,3}(?:\.\d{3})*,\d{2})/;
+  const seen = new Set<string>();
   let inFutureInstallments = false;
 
   for (let i = 0; i < lines.length; i++) {
@@ -218,27 +220,13 @@ export function parseItau(text: string): Transaction[] {
         }
       }
 
-      // Extract installment info — find DD/DD that looks like num/total
-      let description = rawDesc.trim();
-      let installment: string | undefined;
-      const itauInstallments = [...description.matchAll(/(\d{2})\/(\d{2})/g)];
-      for (const m of itauInstallments) {
-        const num = parseInt(m[1], 10);
-        const total = parseInt(m[2], 10);
-        if (num > 0 && total > 1 && num <= total && total <= 48) {
-          installment = `${m[1]}/${m[2]}`;
-          break;
-        }
-      }
-      if (installment) {
-        description = description.replace(new RegExp(`\\s*${installment.replace('/', '\\/')}\\s*`), ' ').trim();
-      }
+      // Extract installment info
+      const { installment, cleaned: description } = extractInstallment(rawDesc.trim());
 
-      // Deduplicate: same date + description + value
-      const isDuplicate = transactions.some(t =>
-        t.date === date && t.description === description && Math.abs(t.value - value) < 0.02
-      );
-      if (isDuplicate) continue;
+      // Deduplicate: O(1) lookup via Set
+      const dedupeKey = `${date}|${description}|${Math.round(value * 100)}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
 
       transactions.push({
         id: nextId(),
@@ -325,30 +313,13 @@ export function parseBradesco(text: string): Transaction[] {
       const valueIndex = rest.indexOf(valueMatch[0]);
       let rawDesc = rest.substring(0, valueIndex).trim();
 
-      // Extract installment info — can appear anywhere in the description:
-      // "PIX PARC CARTAO CRED02/05", "AMAZON BR 07/10 SAO PAULO",
-      // "PICPAY*Joao Pedro Ta05/12 S o Paulo", "BRASIL PARAL*BrasilP06/12 SAO PAULO"
-      // Find ALL DD/DD patterns and pick the one that looks like a valid installment (num/total)
-      let installment: string | undefined;
-      const allInstallments = [...rawDesc.matchAll(/(\d{2})\/(\d{2})/g)];
-      for (const m of allInstallments) {
-        const num = parseInt(m[1], 10);
-        const total = parseInt(m[2], 10);
-        if (num > 0 && total > 1 && num <= total && total <= 48) {
-          installment = `${m[1]}/${m[2]}`;
-          break;
-        }
-      }
-
       // Clean description: remove city at the end
-      let description = rawDesc.trim();
+      let cleanedDesc = rawDesc.trim();
       const cityPattern = /\s+(SAO PAULO|RECIFE|PAULISTA|OLINDA|BARUERI|OSASCO|IGARASSU|SANTO ANDRE|NAVEGANTES|SOROCABA|CAMARAGIBE|CURITIBA|Sao Paulo|Paulista|Olinda|Recife|S o Paulo|SANTANA DE|Brasilia|PA)\s*$/i;
-      description = description.replace(cityPattern, '').trim();
+      cleanedDesc = cleanedDesc.replace(cityPattern, '').trim();
 
-      // Remove installment from description (handles both "CRED02/05" and "Brazil 09/12")
-      if (installment) {
-        description = description.replace(new RegExp(`\\s*${installment.replace('/', '\\/')}\\s*`), ' ').trim();
-      }
+      // Extract installment info
+      const { installment, cleaned: description } = extractInstallment(cleanedDesc);
 
       // Skip if description is empty or looks like a date-only line (e.g. "20/03/2026")
       if (!description || /^\d{2}\/\d{2}\/\d{4}$/.test(description)) continue;
@@ -485,26 +456,18 @@ export async function parsePDF(file: File): Promise<Transaction[]> {
     throw new InvalidPDFError(`"${file.name}" esta vazio (0 paginas).`);
   }
 
+  // Single pass: extract both fullText (for validation) and lineText (for parsing)
   let fullText = '';
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ');
-    fullText += pageText + '\n';
-  }
-
-  // Validate bill content before parsing
-  validateBillContent(fullText, file.name);
-
-  // Get line-by-line text grouped by Y coordinate
   let lineText = '';
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const items = content.items.filter((item) => 'str' in item && 'transform' in item);
 
+    // Build fullText for validation
+    fullText += items.map((item) => (item as { str: string }).str).join(' ') + '\n';
+
+    // Build lineText grouped by Y coordinate
     const lineMap = new Map<number, { x: number; text: string }[]>();
     for (const item of items) {
       const rec = item as { str: string; transform: number[] };
@@ -512,13 +475,15 @@ export async function parsePDF(file: File): Promise<Transaction[]> {
       if (!lineMap.has(y)) lineMap.set(y, []);
       lineMap.get(y)!.push({ x: rec.transform[4], text: rec.str });
     }
-
     const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a);
     for (const y of sortedYs) {
-      const items = lineMap.get(y)!.sort((a, b) => a.x - b.x);
-      lineText += items.map(i => i.text).join(' ') + '\n';
+      const lineItems = lineMap.get(y)!.sort((a, b) => a.x - b.x);
+      lineText += lineItems.map(li => li.text).join(' ') + '\n';
     }
   }
+
+  // Validate bill content before parsing
+  validateBillContent(fullText, file.name);
 
   const source = detectSource(fullText);
   const transactions = source === 'itau' ? parseItau(lineText) : parseBradesco(lineText);

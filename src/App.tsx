@@ -11,6 +11,7 @@ import {
 import { parsePDF, InvalidPDFError } from './parser';
 import { exportExcel, exportPDF } from './export';
 import { saveAnalysis, loadAnalysis, listAnalyses, deleteAnalysis } from './storage';
+import { formatBRL } from './utils';
 import type { Transaction, Category, Person } from './types';
 import { CATEGORIES } from './types';
 
@@ -19,10 +20,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Shirt, Car, Home, Gamepad2, Cpu, Wrench, Pill, PawPrint,
   RefreshCw, Landmark, Package,
 };
-
-function formatBRL(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 type SortField = 'date' | 'description' | 'value' | 'category';
 type SortDir = 'asc' | 'desc';
@@ -555,7 +552,7 @@ export default function App() {
                       <div className="flex gap-3 mt-1 text-[11px] text-ink-400">
                         <span>{item.transactionCount} transacoes</span>
                         <span>
-                          {item.totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {formatBRL(item.totalGeral)}
                         </span>
                         <span className="truncate">{item.uploadedFiles.join(', ')}</span>
                       </div>
