@@ -14,7 +14,7 @@
 [Demo](https://johnpitter.github.io/fatura-analyzer/) · [Features](#-features) · [Como Funciona](#-como-funciona) · [Tech Stack](#-tech-stack) · [Desenvolvimento](#-desenvolvimento)
 
 
-https://github.com/JohnPitter/fatura-analyzer/raw/main/assets/promo.mp4
+<img src="assets/promo.gif" alt="Fatura Analyzer Demo" width="720" />
 
 
 </div>
