@@ -8,7 +8,7 @@ import {
   ShieldCheck, Lock, Eye, EyeOff, Download, Building2, Search,
   History, Save, KeyRound, FolderOpen,
 } from 'lucide-react';
-import { parsePDF } from './parser';
+import { parsePDF, InvalidPDFError } from './parser';
 import { exportExcel, exportPDF } from './export';
 import { saveAnalysis, loadAnalysis, listAnalyses, deleteAnalysis } from './storage';
 import type { Transaction, Category, Person } from './types';
@@ -46,6 +46,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [assignDropdownTx, setAssignDropdownTx] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [rejectedFiles, setRejectedFiles] = useState<{ name: string; reason: string }[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -64,8 +65,10 @@ export default function App() {
 
   const processFiles = useCallback(async (files: File[]) => {
     setIsLoading(true);
+    setRejectedFiles([]);
     const newTransactions: Transaction[] = [];
     const newFileNames: string[] = [];
+    const rejected: { name: string; reason: string }[] = [];
 
     for (const file of files) {
       try {
@@ -73,12 +76,18 @@ export default function App() {
         newTransactions.push(...txs);
         newFileNames.push(file.name);
       } catch (err) {
-        console.error(`Error parsing ${file.name}:`, err);
+        if (err instanceof InvalidPDFError) {
+          rejected.push({ name: file.name, reason: err.message });
+        } else {
+          rejected.push({ name: file.name, reason: `Erro ao processar "${file.name}". O arquivo pode estar corrompido.` });
+          console.error(`Error parsing ${file.name}:`, err);
+        }
       }
     }
 
     setTransactions(prev => [...prev, ...newTransactions]);
     setUploadedFiles(prev => [...prev, ...newFileNames]);
+    if (rejected.length > 0) setRejectedFiles(rejected);
     setIsLoading(false);
   }, []);
 
@@ -579,6 +588,23 @@ export default function App() {
         {/* Empty State */}
         {!hasTransactions && !isLoading && (
           <div className="flex flex-col items-center justify-center py-32">
+            {/* Rejected files in empty state */}
+            {rejectedFiles.length > 0 && (
+              <div className="w-full max-w-lg mb-8 rounded-xl border border-ruby-200 bg-ruby-100 p-4 animate-fade-in-up">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[13px] font-semibold text-ruby-500 flex items-center gap-2">
+                    <X className="w-4 h-4" />
+                    {rejectedFiles.length === 1 ? 'Arquivo rejeitado' : 'Arquivos rejeitados'}
+                  </h4>
+                  <button onClick={() => setRejectedFiles([])} className="p-1 rounded-md hover:bg-ruby-200 transition-colors cursor-pointer">
+                    <X className="w-3.5 h-3.5 text-ruby-400" />
+                  </button>
+                </div>
+                {rejectedFiles.map((rf, i) => (
+                  <p key={i} className="text-[12px] text-ruby-600">{rf.reason}</p>
+                ))}
+              </div>
+            )}
             <div className="w-24 h-24 rounded-3xl bg-sand-200 flex items-center justify-center mb-6 animate-float">
               <FileText className="w-12 h-12 text-sand-400" />
             </div>
@@ -643,6 +669,28 @@ export default function App() {
                 </span>
               ))}
             </div>
+
+            {/* Rejected Files Banner */}
+            {rejectedFiles.length > 0 && (
+              <div className="rounded-xl border border-ruby-200 bg-ruby-100 p-4 animate-fade-in-up">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[13px] font-semibold text-ruby-500 flex items-center gap-2">
+                    <X className="w-4 h-4" />
+                    {rejectedFiles.length} {rejectedFiles.length === 1 ? 'arquivo rejeitado' : 'arquivos rejeitados'}
+                  </h4>
+                  <button onClick={() => setRejectedFiles([])} className="p-1 rounded-md hover:bg-ruby-200 transition-colors cursor-pointer">
+                    <X className="w-3.5 h-3.5 text-ruby-400" />
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {rejectedFiles.map((rf, i) => (
+                    <p key={i} className="text-[12px] text-ruby-600">
+                      {rf.reason}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Summary Cards — full width, 4 across */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">

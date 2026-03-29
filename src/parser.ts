@@ -407,9 +407,83 @@ export function detectSource(text: string): 'itau' | 'bradesco' {
   return 'bradesco';
 }
 
+export class InvalidPDFError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidPDFError';
+  }
+}
+
+/**
+ * Validates that the PDF content matches expected credit card bill layout.
+ * Throws InvalidPDFError with a user-friendly message if not valid.
+ */
+function validateBillContent(fullText: string, fileName: string): void {
+  const text = fullText.toLowerCase();
+
+  // Must have minimum text content (not a scanned image or empty PDF)
+  if (fullText.trim().length < 100) {
+    throw new InvalidPDFError(
+      `"${fileName}" parece estar vazio ou ser uma imagem escaneada. Envie a fatura em PDF digital (nao foto/scan).`
+    );
+  }
+
+  // Check for credit card bill markers from either bank
+  const isItau = text.includes('itaú') || text.includes('itau') || text.includes('4004 4828') ||
+    text.includes('lançamentos: compras e saques') || text.includes('lancamentos');
+  const isBradesco = text.includes('bradesco') || text.includes('fatura mensal') ||
+    text.includes('histórico de lançamentos') || text.includes('historico de lancamentos');
+
+  // Check for common bill keywords
+  const hasBillKeywords =
+    (text.includes('fatura') || text.includes('lançamento') || text.includes('lancamento')) &&
+    (text.includes('total') || text.includes('valor')) &&
+    /\d{2}\/\d{2}/.test(text);
+
+  if (!isItau && !isBradesco && !hasBillKeywords) {
+    throw new InvalidPDFError(
+      `"${fileName}" nao parece ser uma fatura de cartao de credito. Somente faturas do Itau e Bradesco sao suportadas.`
+    );
+  }
+
+  // Check it's not a bank statement (extrato) instead of credit card bill
+  if ((text.includes('extrato') || text.includes('conta corrente')) &&
+      !text.includes('fatura') && !text.includes('cartão') && !text.includes('cartao')) {
+    throw new InvalidPDFError(
+      `"${fileName}" parece ser um extrato bancario, nao uma fatura de cartao de credito.`
+    );
+  }
+
+  // Check it has transaction-like patterns (DD/MM followed by text and values)
+  const txPattern = /\d{2}\/\d{2}\s+\S+.*\d+,\d{2}/;
+  if (!txPattern.test(fullText)) {
+    throw new InvalidPDFError(
+      `"${fileName}" nao contem transacoes no formato esperado. Verifique se e uma fatura de cartao do Itau ou Bradesco.`
+    );
+  }
+}
+
 export async function parsePDF(file: File): Promise<Transaction[]> {
+  // Validate file type
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    throw new InvalidPDFError(
+      `"${file.name}" nao e um arquivo PDF. Envie apenas faturas em formato PDF.`
+    );
+  }
+
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  } catch {
+    throw new InvalidPDFError(
+      `"${file.name}" nao pode ser lido como PDF. O arquivo pode estar corrompido ou protegido por senha.`
+    );
+  }
+
+  if (pdf.numPages === 0) {
+    throw new InvalidPDFError(`"${file.name}" esta vazio (0 paginas).`);
+  }
 
   let fullText = '';
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -421,14 +495,16 @@ export async function parsePDF(file: File): Promise<Transaction[]> {
     fullText += pageText + '\n';
   }
 
-  // Also get line-by-line text
+  // Validate bill content before parsing
+  validateBillContent(fullText, file.name);
+
+  // Get line-by-line text grouped by Y coordinate
   let lineText = '';
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const items = content.items.filter((item) => 'str' in item && 'transform' in item);
 
-    // Group by Y coordinate to form lines
     const lineMap = new Map<number, { x: number; text: string }[]>();
     for (const item of items) {
       const rec = item as { str: string; transform: number[] };
@@ -437,7 +513,6 @@ export async function parsePDF(file: File): Promise<Transaction[]> {
       lineMap.get(y)!.push({ x: rec.transform[4], text: rec.str });
     }
 
-    // Sort by Y (descending = top to bottom) then X
     const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a);
     for (const y of sortedYs) {
       const items = lineMap.get(y)!.sort((a, b) => a.x - b.x);
@@ -446,9 +521,14 @@ export async function parsePDF(file: File): Promise<Transaction[]> {
   }
 
   const source = detectSource(fullText);
+  const transactions = source === 'itau' ? parseItau(lineText) : parseBradesco(lineText);
 
-  if (source === 'itau') {
-    return parseItau(lineText);
+  // Post-parse validation: must have found at least some transactions
+  if (transactions.length === 0) {
+    throw new InvalidPDFError(
+      `"${file.name}" foi reconhecido como fatura ${source === 'itau' ? 'Itau' : 'Bradesco'}, mas nenhuma transacao foi encontrada. O layout pode ser diferente do esperado.`
+    );
   }
-  return parseBradesco(lineText);
+
+  return transactions;
 }
