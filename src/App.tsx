@@ -630,6 +630,14 @@ export default function App() {
               ou arraste e solte seus PDFs em qualquer lugar da pagina
             </p>
 
+            {/* Supported banks */}
+            <div className="mt-8 flex items-center gap-4 px-5 py-3 rounded-xl bg-sand-100 border border-sand-200 animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
+              <span className="text-[11px] text-ink-400 uppercase tracking-wider font-semibold">Bancos suportados</span>
+              <span className="text-[12px] font-medium text-ember-500 bg-ember-100 px-2.5 py-0.5 rounded-md">Itau</span>
+              <span className="text-[12px] font-medium text-ruby-500 bg-ruby-100 px-2.5 py-0.5 rounded-md">Bradesco</span>
+              <span className="text-[11px] text-ink-300 italic">outros em breve</span>
+            </div>
+
             {/* Privacy note in empty state */}
             <div className="mt-12 flex items-center gap-2 px-4 py-2 rounded-full bg-jade-100 text-jade-500 text-[12px] font-medium animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
               <ShieldCheck className="w-3.5 h-3.5" />
